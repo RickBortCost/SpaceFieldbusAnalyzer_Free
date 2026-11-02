@@ -4,7 +4,11 @@
 
 **Download:** [ultima release](https://github.com/RickBortCost/SpaceAnalyzer_Free/releases/latest).
 
-## Novità della versione 4.0.0
+## Novità della versione 4.0.1
+
+- Live Acquisition API: **`stream_stopped` sempre inviato** quando una sessione viene chiusa (DELETE, TTL, chiusura dell'applicazione) mentre sono in invio dei campioni; prima il WebSocket poteva chiudersi senza. Motivo: richiesto dalla specifica (§22); il caso ha fermato la pubblicazione della 4.0.0.
+
+Dalla 4.0.0:
 
 - **Scelta della modalità all'avvio**: **Space Fieldbus Analyzer** (interfaccia completa) oppure **Live Acquisition API**; `--mode sfa|api` la sceglie senza operatore. Motivo: usare SFA come servizio comandato da altri sistemi senza caricare il PC con l'interfaccia.
 - **Live Acquisition API**: un sistema esterno chiede via REST (`/api/v1/live-sessions`, porta 5180, chiave API) l'acquisizione temporanea di segnali delle sorgenti salvate in SFA; i campioni arrivano su un WebSocket aperto da SFA verso l'indirizzo indicato (`stream_started`, `samples` con sequenza, timestamp UTC e qualità, `signal_status`, `stream_stopped`), con TTL, riconnessione e host autorizzati. Stessi driver e stesso motore di acquisizione dell'interfaccia; nulla viene salvato. Motivo: specifica «Live Acquisition API – MVP 0».
