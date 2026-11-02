@@ -160,6 +160,20 @@ async function page(){
     assert.equal((await call('GET','/api/v1/live-sessions/'+s1.sessionId)).status,404);
     checks.push('DELETE: 204, stream_stopped requested, socket closed, session removed');
 
+    // ---- DELETE while samples are being sent: stream_stopped always arrives (a cancelled send must not abort the socket) ----
+    await local('/api/live-api/settings',{batch_ms:20});
+    for(let i=0;i<8;i++){
+      const id='test-busy-'+i;
+      r=await call('POST','/api/v1/live-sessions',request(id,{samplingPeriodMs:10}));assert.equal(r.status,201,JSON.stringify(r.body));
+      const busy=()=>backend.connections.find(c=>c.path==='/api/live-streams/'+id);
+      await wait(()=>busy()&&busy().messages.filter(m=>m.type==='samples').length>=2,'busy session '+i+' streaming');
+      assert.equal((await call('DELETE','/api/v1/live-sessions/'+r.body.sessionId)).status,204);
+      await wait(()=>busy().closed,'busy session '+i+' closed');
+      assert.equal(busy().messages.at(-1).type,'stream_stopped','stream_stopped after DELETE during sending ('+i+')');
+    }
+    await local('/api/live-api/settings',{batch_ms:50});
+    checks.push('DELETE during continuous sending: stream_stopped every time');
+
     // ---- TTL ----
     r=await call('POST','/api/v1/live-sessions',request('test-ttl',{ttlSeconds:2}));assert.equal(r.status,201);
     const conn3=()=>backend.connections.find(c=>c.path==='/api/live-streams/test-ttl');

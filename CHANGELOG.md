@@ -2,6 +2,11 @@
 
 Il numero di versione e la data di ogni release sono assegnati dalla pipeline (vedi `VERSIONI.md`); per le versioni 1.x vedi `source/CHANGELOG.txt`.
 
+## 4.0.1
+
+- **`stream_stopped` sempre inviato alla chiusura della sessione**: se una DELETE, la scadenza del TTL o la chiusura dell'applicazione arrivavano mentre SFA stava preparando o inviando un messaggio `samples`, l'annullamento dell'invio faceva abortire il WebSocket e il sistema esterno vedeva la connessione chiudersi senza `stream_stopped`. Ora gli invii non vengono mai annullati dallo stop (hanno solo un proprio limite di 10 s, oltre il quale il destinatario è considerato perso e la connessione viene rifatta) e lo stop è osservato tra un invio e l'altro: i campioni in coda vengono inviati, poi `stream_stopped` e la chiusura normale del socket. Motivo: la pubblicazione della 4.0.0 è stata fermata dalla CI su Windows, dove la «Prova sul PC» terminata con STOP non ha ricevuto `stream_stopped`; la specifica (§22) chiede di inviarlo prima della chiusura volontaria.
+- Test: `test_live_api_ui.cjs` chiude otto sessioni a 10 ms durante l'invio continuo (messaggi ogni 20 ms) e verifica ogni volta `stream_stopped` come ultimo messaggio.
+
 ## 4.0.0
 
 - **Scelta della modalità all'avvio**: l'applicazione apre una pagina iniziale con due modalità, **Space Fieldbus Analyzer** (l'interfaccia completa di sempre) e **Live Acquisition API**. La modalità resta fissa fino alla chiusura; `--mode sfa|api` (passato dal launcher al servizio) o la variabile `SPACE_MODE` la scelgono senza operatore. Motivo: richiesta di usare SFA anche come servizio comandato da altri sistemi senza caricare il PC con l'interfaccia, che in quella modalità non serve.

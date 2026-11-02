@@ -17,6 +17,8 @@ public sealed class LiveSession
 {
     public const int SchemaVersion = 1;
     const int MaxQueued = 200_000, MaxPerMessage = 5000;
+    /// <summary>A consumer that does not read for this long counts as lost (the socket is then reconnected).</summary>
+    static readonly TimeSpan SendTimeout = TimeSpan.FromSeconds(10);
 
     sealed class SignalState(LiveSignal signal)
     {
@@ -209,7 +211,7 @@ public sealed class LiveSession
                     }
                     Note($"WebSocket connesso a {Request.StreamUrl}");
                     lock (gate) { queue.Clear(); foreach (var signal in signals) signal.LastSent = null; }
-                    await Send(socket, Started, token);
+                    using (var started = new CancellationTokenSource(SendTimeout)) await Send(socket, Started, started.Token);
                     StreamConnected = true;
                     Status = "streaming";
                     attempts = 0; lostSince = null; delay = settings().ReconnectDelayMs;
@@ -303,7 +305,9 @@ public sealed class LiveSession
                 throw new WebSocketException("chiuso dalla destinazione");
             }
             await wait;   // throws when the session is stopped
-            await Flush(socket, token);
+            // Sends are never cancelled by the stop: a cancelled send aborts the WebSocket and stream_stopped could not be sent.
+            using var send = new CancellationTokenSource(SendTimeout);
+            await Flush(socket, send.Token);
         }
     }
 
