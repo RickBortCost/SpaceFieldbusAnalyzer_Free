@@ -12,9 +12,54 @@ public static class Import
 {
     static string Token() => Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
 
+    /// <summary>
+    /// Copies of files opened from the PC (and comparison results) stay in the data folder, which is usually on C:. At startup the
+    /// ones not used for <paramref name="maxAge"/> are removed, then the oldest until the folder is under <paramref name="maxBytes"/>;
+    /// the originals on the PC are not touched. PDA3 sequences that lost a part are removed too. Returns the bytes freed.
+    /// </summary>
+    public static long Prune(string directory, TimeSpan maxAge, long maxBytes)
+    {
+        if (!Directory.Exists(directory)) return 0;
+        long freed = 0;
+        void Remove(FileInfo file)
+        {
+            try
+            {
+                var size = file.Length;
+                file.Delete();
+                freed += size;
+                var sidecar = Path.ChangeExtension(file.FullName, ".metadata.json");
+                if (File.Exists(sidecar)) File.Delete(sidecar);
+            }
+            catch (Exception exc) when (exc is IOException or UnauthorizedAccessException) { }
+        }
+        static DateTime Used(FileInfo f) => f.LastAccessTimeUtc > f.LastWriteTimeUtc ? f.LastAccessTimeUtc : f.LastWriteTimeUtc;
+        var files = new DirectoryInfo(directory).EnumerateFiles().Where(f => !f.Name.EndsWith(".metadata.json", StringComparison.OrdinalIgnoreCase)).OrderBy(Used).ToList();
+        var limit = DateTime.UtcNow - maxAge;
+        var total = files.Sum(f => f.Length);
+        foreach (var file in files)
+        {
+            if (Used(file) >= limit && total <= maxBytes) break;
+            total -= file.Length;
+            Remove(file);
+        }
+        foreach (var seq in new DirectoryInfo(directory).EnumerateFiles("*.pda3seq").ToList())
+        {
+            try
+            {
+                var parts = JsonNode.Parse(File.ReadAllText(seq.FullName))?["parts"] as JsonArray;
+                if (parts == null || parts.Any(p => p?.GetValue<string>() is not { Length: > 0 } name || !File.Exists(Path.Combine(directory, Path.GetFileName(name))))) Remove(seq);
+            }
+            catch (Exception exc) when (exc is IOException or System.Text.Json.JsonException or InvalidOperationException) { Remove(seq); }
+        }
+        return freed;
+    }
+
     public static async Task<object?> Files(HttpContext ctx, string directory, RecordingLibrary library)
     {
         if (!ctx.Request.HasFormContentType) throw new UserError("Seleziona CSV, Parquet, FDA DAS4, RBF v3 o DAT PDA3");
+        // The upload is buffered in the data folder and then copied beside the other imports: twice its size.
+        DiskGuard.Require(directory, 2 * (ctx.Request.ContentLength ?? 0), "l'importazione");
         var form = await ctx.Request.ReadFormAsync();
         var uploads = form.Files.GetFiles("files").ToList();
         if (uploads.Count == 0) uploads = form.Files.GetFiles("file").ToList();

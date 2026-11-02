@@ -217,10 +217,16 @@ public static class Pda3
             try { reader.Generic = Pda3Layout.Build(reader); }
             catch (UserError generic) { throw new UserError(generic.Message + " (" + model.Message + ")"); }
         }
-        if (Readers.Count >= 4) Readers.Clear();
-        Readers[key] = reader;
+        // Each reader holds its whole file (up to 256 MiB): at most 512 MiB cached, none when the PC is short of memory.
+        if (Readers.Count >= 4 || Readers.Values.Sum(r => (long)r.Raw.Length) + reader.Raw.Length > MaxCachedBytes || MemoryGuard.Level != "ok") Readers.Clear();
+        if (MemoryGuard.Level == "ok") Readers[key] = reader;
         return reader;
     }
+
+    const long MaxCachedBytes = 512L << 20;
+
+    /// <summary>Drops the cached DAT readers (memory pressure).</summary>
+    public static void ClearCache() { Readers.Clear(); PartInfo.Clear(); }
 
     static string Calendar(ulong ticks)
     {

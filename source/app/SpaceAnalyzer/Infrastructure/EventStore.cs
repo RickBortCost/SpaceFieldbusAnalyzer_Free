@@ -22,9 +22,12 @@ public sealed class EventStore
     public Action<Dictionary<string, object?>>? Listener { get; set; }
     public string ListenerError { get; private set; } = "";
 
-    public EventStore(string path, int capacity = 2048)
+    /// <summary>Newest events kept on disk: a connection that keeps dropping for weeks must not grow the file without limit.</summary>
+    readonly long keep;
+
+    public EventStore(string path, int capacity = 2048, long keep = 200_000)
     {
-        this.path = path;
+        this.path = path; this.keep = Math.Max(1, keep);
         queue = new BlockingCollection<Dictionary<string, object?>?>(capacity);
     }
 
@@ -72,6 +75,8 @@ public sealed class EventStore
             Exec(db, "PRAGMA journal_mode=WAL");
             Exec(db, "PRAGMA synchronous=FULL");
             Exec(db, "CREATE TABLE IF NOT EXISTS events(id INTEGER PRIMARY KEY,at_ns TEXT,kind TEXT,connection_id TEXT,details TEXT)");
+            Prune(db);
+            long inserted = 0;
             while (true)
             {
                 var item = queue.Take();
@@ -108,11 +113,22 @@ public sealed class EventStore
                     }
                     transaction.Commit();
                 }
+                inserted += batch.Count;
+                if (inserted >= Math.Min(10_000, keep)) { inserted = 0; Prune(db); }
                 if (stop) break;
             }
         }
         catch (Exception exc) { Error = exc.Message; }
         finally { db?.Dispose(); }
+    }
+
+    /// <summary>Deletes all but the newest events (the freed pages are reused, so the file stops growing).</summary>
+    void Prune(SqliteConnection db)
+    {
+        using var command = db.CreateCommand();
+        command.CommandText = "DELETE FROM events WHERE id <= (SELECT MAX(id) FROM events) - $k";
+        command.Parameters.AddWithValue("$k", keep);
+        command.ExecuteNonQuery();
     }
 
     static void Exec(SqliteConnection db, string sql)

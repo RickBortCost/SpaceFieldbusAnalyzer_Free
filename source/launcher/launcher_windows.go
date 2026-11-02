@@ -29,7 +29,7 @@ var payload []byte
 //go:embed payload.sha256
 var payloadDigest string
 
-const version = "3.17.1"
+const version = "3.17.2"
 
 func message(text string) {
 	title, _ := syscall.UTF16PtrFromString("Space Fieldbus Analyzer V" + version)
@@ -249,6 +249,10 @@ func runtimeDirectory(dataDir string, progress func(float64)) (string, error) {
 	if entries, readErr := os.ReadDir(base); readErr == nil {
 		for _, entry := range entries {
 			if entry.IsDir() && entry.Name() != filepath.Base(target) && !strings.HasPrefix(entry.Name(), "extract-") {
+				os.RemoveAll(filepath.Join(base, entry.Name()))
+			}
+			// Extractions interrupted by a closed or killed launcher (an hour old: not one in progress).
+			if info, infoErr := entry.Info(); infoErr == nil && entry.IsDir() && strings.HasPrefix(entry.Name(), "extract-") && time.Since(info.ModTime()) > time.Hour {
 				os.RemoveAll(filepath.Join(base, entry.Name()))
 			}
 		}

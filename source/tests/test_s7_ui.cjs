@@ -60,6 +60,10 @@ async function page(){
   assert.equal(t.conv().job.state,'ready',t.conv().job.error);assert(t.conv().job.rows_read>15);assert(t.conv().job.files[0].name.endsWith('.csv'));assert.equal(t.conv().job.warning,null);
   assert.equal(t.conv().job.split_minutes,15);assert.equal(t.conv().job.files.length,1);
   const exported=await(await fetch(base+'/api/recordings')).json();assert(exported.files.some(f=>f.name===t.conv().job.files[0].name),'exported file listed in Registrazioni');
+  // The exported primary capture can be deleted from the page to free the disk (after a confirmation).
+  assert(!$('conv-delete-primary').hidden&&!$('conv-delete-primary').disabled);const sacName=t.conv().file.name,sacLabel=t.conv().file.display_name||sacName;let asked='';w.confirm=q=>{asked=q;return true;};
+  $('conv-delete-primary').click();await wait(()=>!sacItem(),'primary capture deleted');assert(asked.includes(sacLabel),asked);
+  assert(!(await(await fetch(base+'/api/convert/primary')).json()).files.some(f=>f.name===sacName));assert($('conv-form').hidden);
   $('nav-live').click();
   // Symbolic tree: one click selects every variable of a structure/array branch (the CPU answer is simulated here).
   w.eval("window.__request=request;request=async(url,...rest)=>String(url).startsWith('/api/s7/symbols/branch')?{nodes:[{nodeid:'s7:sym:DB_A.x',display_name:'x',node_class:'Variable'},{nodeid:'s7:sym:DB_A.s.y',display_name:'y',node_class:'Variable'}],total:2}:String(url).startsWith('/api/select')?{}:window.__request(url,...rest);");

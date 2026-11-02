@@ -70,6 +70,7 @@ function renderConversion(){
   for(const id of ['conv-format','conv-signal-search','conv-from','conv-to','conv-full-range'])convEl(id).disabled=running||applicationClosed;
   convEl('conv-start').disabled=running||applicationClosed||!count||!!tooMany||!!f.read_error;convEl('conv-start').title=tooMany?I18N.t('Selezionare al massimo 64 segnali per FDA DAS4 e RBF'):'';
   convEl('conv-cancel').hidden=!running;convEl('conv-open-local').disabled=running||applicationClosed;convEl('conv-open-primary').disabled=running||applicationClosed;
+  const del=convEl('conv-delete-primary');if(del){del.hidden=f.source!=='primary';del.disabled=running||applicationClosed;del.textContent=I18N.t(f.external?'Rimuovi dall’elenco':'Elimina archivio primario');}
   renderConversionJob();
 }
 function renderConversionJob(){
@@ -152,6 +153,18 @@ convEl('conv-open-primary').onclick=async()=>{
     convError('');const picked=await request('/api/convert/primary/browse',{});if(!picked.path)return;
     const added=(await request('/api/convert/primary/add',{path:picked.path})).file;
     await refreshConversionFiles();const item=CONV.files.find(f=>f.source==='primary'&&f.name===added.name);if(item)selectConversionFile(item);
+  }catch(e){convError(e.message);notice(e.message,true);}
+};
+// Every recording leaves a primary capture as large as its data: the operator removes the ones already exported.
+if(convEl('conv-delete-primary'))convEl('conv-delete-primary').onclick=async()=>{
+  const f=CONV.file;if(!f||f.source!=='primary'||convRunning())return;
+  const question=f.external?I18N.join([{text:'Rimuovere dall’elenco l’archivio «'},{value:f.name},{text:'»? Il file non viene eliminato.'}])
+    :I18N.join([{text:'Eliminare definitivamente l’archivio primario «'},{value:f.display_name||f.name},{text:'» ('},{value:historyBytes(f.size_bytes)},{text:')? I file già esportati o convertiti vengono conservati.'}]);
+  if(typeof window.confirm==='function'&&!window.confirm(question))return;
+  try{
+    convError('');const result=(await request('/api/convert/primary/delete',{name:f.name})).file;
+    if(result.deleted)notice(I18N.join([{text:'Archivio primario eliminato: liberati '},{value:historyBytes(result.freed_bytes)}]));
+    CONV.file=null;await refreshConversionFiles();
   }catch(e){convError(e.message);notice(e.message,true);}
 };
 convEl('conv-local-file').onchange=async()=>{const input=convEl('conv-local-file');try{await importConversionFiles(input.files);}catch(e){convError(e.message);notice(e.message,true);}finally{input.value='';}};
