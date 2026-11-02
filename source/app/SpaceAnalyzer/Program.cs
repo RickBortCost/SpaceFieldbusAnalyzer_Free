@@ -163,6 +163,7 @@ public static class Program
         Engine.Core.EngineLog.Sink = Log.Info;
         Directory.CreateDirectory(paths.ImportedRecordingsDir);
         var runtime = new AppRuntime(paths);
+        MemoryGuard.Start();
         runtime.Certs.RestoreSaved();
         runtime.Certs.BootstrapBundle();
         runtime.Initialize();

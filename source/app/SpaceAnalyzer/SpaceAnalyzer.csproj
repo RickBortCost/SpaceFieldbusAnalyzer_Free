@@ -11,7 +11,7 @@
     <InvariantGlobalization>false</InvariantGlobalization>
     <ServerGarbageCollection>false</ServerGarbageCollection>
     <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
-    <Version>3.17.0</Version>
+    <Version>3.17.1</Version>
     <ApplicationIcon>../../static/space-analyzer.ico</ApplicationIcon>
     <Product>Space Fieldbus Analyzer</Product>
     <Description>Space Fieldbus Analyzer</Description>
@@ -20,6 +20,10 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../engine/SpaceAnalyzer.Engine/SpaceAnalyzer.Engine.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Compacts the managed heap more readily, so that memory freed after peaks returns to the PC (long acquisitions on IPCs with little RAM). -->
+    <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="5" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Assets/profile_64_10ms.json" LogicalName="pda3_profile.json" />

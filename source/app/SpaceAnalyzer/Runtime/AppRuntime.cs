@@ -589,18 +589,37 @@ public sealed class AppRuntime : IDisposable
         return new(new() { ["with_seq"] = true, ["signals"] = signals }, columns);
     }
 
-    /// <summary>Live originals of the session archived before each signal's sequence ({nid: seq}), for a view started late.</summary>
-    public Recordings.SamplePayload LiveHistory(JsonObject before)
+    /// <summary>
+    /// Live originals of the session archived before each signal's sequence ({nid: seq}), for a view started late.
+    /// At most what the page can keep (<paramref name="maxSamples"/>) and what the PC can spare: the originals of one signal are
+    /// loaded as objects (a few hundred bytes each) before being packed, so the budget follows the free memory and is 0 when it is nearly exhausted.
+    /// </summary>
+    public Recordings.SamplePayload LiveHistory(JsonObject before, double? maxSamples = null)
     {
         var wanted = new List<(string nid, long seq)>();
         lock (Lock)
             foreach (var (nid, node) in before)
                 if (samples.ContainsKey(nid) && node.Num() is double seq && seq > 0) wanted.Add((nid, (long)seq));
-        var limit = Math.Max(1000, LiveHistoryBudget / Math.Max(1, wanted.Count));
+        long budget = maxSamples is double requested && double.IsFinite(requested) && requested >= 0 ? (long)Math.Min(requested, LiveHistoryBudget) : LiveHistoryBudget;
+        long perSignalCap = long.MaxValue;
+        var spare = MemoryGuard.AvailableBytes - (1536L << 20);
+        if (MemoryGuard.Level == "critical") budget = 0;
+        else if (MemoryGuard.AvailableBytes > 0)
+        {
+            budget = Math.Min(budget, Math.Max(0, spare / 64));        // packed columns, sent to the page
+            perSignalCap = Math.Max(0, spare / 600);                   // one signal's objects at a time
+        }
+        var limit = wanted.Count == 0 ? 0 : (int)Math.Min(int.MaxValue, Math.Min(perSignalCap, budget / wanted.Count));
         var signals = new List<object?>();
         var columns = new List<Recordings.SampleColumns>();
         foreach (var (nid, seq) in wanted)
         {
+            if (limit < 1)
+            {
+                signals.Add(new Dictionary<string, object?> { ["nodeid"] = nid, ["truncated"] = true, ["points_returned"] = 0L });
+                columns.Add(new Recordings.SampleColumns(nid));
+                continue;
+            }
             var points = Archive.Before(nid, seq, limit, out var truncated);
             var column = new Recordings.SampleColumns(nid);
             foreach (var p in points)
@@ -650,6 +669,7 @@ public sealed class AppRuntime : IDisposable
         diag["mqtt"] = mqttDiag;
         diag["s7_udp"] = cfg["s7_mode"].Str() == "udp" ? Sub(Session("s7"), "diagnostics") : new();
         diag["ads_notifications"] = cfg["ads_mode"].Str() == "notify" ? Sub(Session("ads"), "diagnostics") : new();
+        diag["memory"] = MemoryGuard.Report();
         var source = (ActiveConfig ?? Config.Load())["source"].Str() ?? "opcua";
         var recording = Recording.Status();
         var calculations = Calculations.Status();
