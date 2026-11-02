@@ -18,16 +18,17 @@ public class AcquisitionTuningTests
     }
 
     [Fact]
-    public void Acquisition_switches_gc_latency_and_restores_it()
+    public void Acquisition_keeps_the_default_gc_mode()
     {
         var before = GCSettings.LatencyMode;
         SystemTuning.SetAcquiring(true);
         try
         {
-            Assert.Equal(GCLatencyMode.SustainedLowLatency, GCSettings.LatencyMode);
+            // SustainedLowLatency postponed full collections and let the memory of long acquisitions grow.
+            Assert.Equal(before, GCSettings.LatencyMode);
+            Assert.NotEqual(GCLatencyMode.SustainedLowLatency, GCSettings.LatencyMode);
             SystemTuning.SetAcquiring(true); // idempotent
             var report = SystemTuning.Report();
-            Assert.Equal("SustainedLowLatency", report["gc_latency"]);
             Assert.True(report.ContainsKey("process_priority") && report.ContainsKey("receive_thread") && report.ContainsKey("power_plan"));
         }
         finally { SystemTuning.SetAcquiring(false); }

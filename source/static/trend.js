@@ -70,7 +70,10 @@ class LiveSeries extends SampleSeries{
   dropLast(){if(this.end>this.start){this.end--;this.revised=true;this.touch();}}
   /** Rimuove i campioni con sequenza < seq (finestra Live: rispecchia il FIFO del servizio). */
   dropBefore(seq){let l=this.start,r=this.end;while(l<r){const m=(l+r)>>1;if(this.bs[m]<seq)l=m+1;else r=m;}if(l!==this.start){this.start=l;this.touch();}}
-  keepLast(count){if(this.end-this.start>count){this.start=this.end-count;this.touch();}}
+  keepLast(count){if(this.end-this.start>count){this.start=this.end-count;this.touch();}if(this.cap>Math.max(65536,2*(this.end-this.start)))this.shrink();}
+  // Fresh, smaller arrays: the memory of the samples no longer kept goes back to the browser (a paused chart keeps its own view).
+  shrink(){const used=this.end-this.start,cap=Math.max(1024,Math.ceil(used*1.25)),copy=(Type,from)=>{const to=new Type(cap);to.set(from.subarray(this.start,this.end));return to;};
+    this.bt=copy(Float64Array,this.bt);this.bv=copy(this.ValueArray,this.bv);this.bq=copy(Uint8Array,this.bq);this.bs=copy(Float64Array,this.bs);this.cap=cap;this.start=0;this.end=used;this.touch();}
   snapshot(){const v=this.view();return new SampleSeries(v.t,v.v,v.q);}
 }
 function isSampleSeries(points){return points instanceof SampleSeries;}

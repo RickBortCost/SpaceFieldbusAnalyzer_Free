@@ -6,7 +6,8 @@ namespace SpaceAnalyzer.Engine.Core;
 
 /// <summary>
 /// Windows scheduling aids while sources acquire: process priority (AboveNormal by default, SPACE_PROCESS_PRIORITY=normal|abovenormal|high),
-/// low-latency garbage collection, MMCSS "Pro Audio" for the threads that receive samples, and a report of the active power plan.
+/// MMCSS "Pro Audio" for the threads that receive samples, and a report of the active power plan. The garbage collector keeps its
+/// default mode: the low-latency mode postponed full collections and let the memory of long acquisitions grow.
 /// Nothing runs in kernel mode and nothing changes system settings; on other platforms every call is a no-op.
 /// </summary>
 public static class SystemTuning
@@ -14,12 +15,11 @@ public static class SystemTuning
     static readonly object Gate = new();
     static bool acquiring;
     static ProcessPriorityClass? previousPriority;
-    static GCLatencyMode? previousLatency;
     static string priority = "normal", threadBoost = "nessuno";
     static long boostedThreads;
     [ThreadStatic] static bool boosted;
 
-    /// <summary>Raises process priority and GC latency mode while any source acquires; restores them afterwards.</summary>
+    /// <summary>Raises process priority while any source acquires; restores it afterwards.</summary>
     public static void SetAcquiring(bool active)
     {
         lock (Gate)
@@ -30,8 +30,6 @@ public static class SystemTuning
             {
                 if (active)
                 {
-                    previousLatency = GCSettings.LatencyMode;
-                    GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
                     if (!OperatingSystem.IsWindows()) return;
                     var target = (Environment.GetEnvironmentVariable("SPACE_PROCESS_PRIORITY") ?? "abovenormal").Trim().ToLowerInvariant() switch
                     {
@@ -46,7 +44,6 @@ public static class SystemTuning
                 }
                 else
                 {
-                    if (previousLatency is GCLatencyMode latency) GCSettings.LatencyMode = latency;
                     if (!OperatingSystem.IsWindows() || previousPriority is not ProcessPriorityClass original) return;
                     using var process = Process.GetCurrentProcess();
                     process.PriorityClass = original;

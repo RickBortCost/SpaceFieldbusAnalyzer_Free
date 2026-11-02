@@ -120,6 +120,8 @@ public sealed partial class RecordingLibrary
         {
             if (++rows > MaxFullSamples)
                 throw new UserError("La selezione supera 80 milioni di campioni: riduci l'intervallo temporale o il numero di segnali per aprirla a piena risoluzione");
+            // Each million samples needs about 40 MB between service and page: never take the PC's last memory.
+            if (rows % 1_000_000 == 0) MemoryGuard.Require(40L << 20, "aprire a piena risoluzione questa selezione");
             numeric += value != null && quality == "Good" ? 1 : 0;
             low = Math.Min(low, t); high = Math.Max(high, t);
         }
