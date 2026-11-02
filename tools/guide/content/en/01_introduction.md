@@ -14,6 +14,8 @@ Since version 3.0 the product no longer contains Python. The Windows EXE consist
 
 The interface labels in the screenshots are in Italian; the language can be changed from the top bar (Italian, English, German, French, Spanish). In the tables, the Italian label is given in brackets where it helps to find the control.
 
+Since version 4.0 the **mode** is chosen at start: **Space Fieldbus Analyzer** (the complete interface described in this guide) or **Live Acquisition API**, a service without the SFA interface through which an external system requests temporary acquisitions via REST and receives the samples via WebSocket (chapter 16).
+
 ## What changed from 3.0.8 to {{version}}
 
 | Version | What changes |
@@ -35,10 +37,12 @@ The interface labels in the screenshots are in Italian; the language can be chan
 | **3.15.0** | **Export of primary captures (.sac)** to CSV, Parquet, FDA or RBF from the Conversion page and with `--tool export-sac`. |
 | **3.16.0** | Conversion and opening of **TwinCAT Scope (.svdx)** projects with embedded data: choice of channels and period to reduce the file; writing to CSV, Parquet, FDA or RBF. |
 | **3.17.0** | Primary capture (.sac) export **split into files of 15 minutes** (5, 30, 60 minutes or a single file can be chosen); overall percentage progress bar throughout the conversion (3.16.1). |
+| **3.17.x** | PC memory kept under control during long acquisitions (3.17.1); disk space protection and deletion of primary captures from the Conversion page (3.17.2). |
+| **4.0.0** | **Mode chosen at start** and new **Live Acquisition API** mode: temporary acquisitions controlled by an external system via REST, samples sent via WebSocket, request monitor page and test on the PC (chapter 16). |
 
 ## Starting on Windows
 
-Download `Space_Fieldbus_Analyzer_V<version>_WINDOWS.zip` from the latest release, extract it to a writable folder and run `Space_Fieldbus_Analyzer_V<version>.exe`. The splash screen with the start bar appears, then the interface opens in the browser (port 5000 or the first free one after it). It starts full screen (F11 to exit) and the page does not scroll: the top bar and the status bar stay fixed and the panels scroll inside. The **Spegni** (Shut down) button (power symbol, top right) closes the application. Closing only the browser tab leaves the service running.
+Download `Space_Fieldbus_Analyzer_V<version>_WINDOWS.zip` from the latest release, extract it to a writable folder and run `Space_Fieldbus_Analyzer_V<version>.exe`. The splash screen with the start bar appears, then the **mode choice** page opens (chapter 16): with **Space Fieldbus Analyzer** the interface opens in the browser (port 5000 or the first free one after it). It starts full screen (F11 to exit) and the page does not scroll: the top bar and the status bar stay fixed and the panels scroll inside. The **Spegni** (Shut down) button (power symbol, top right) closes the application. Closing only the browser tab leaves the service running.
 
 ## Typical workflow
 

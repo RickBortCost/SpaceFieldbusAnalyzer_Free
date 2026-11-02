@@ -1,0 +1,21 @@
+<!DOCTYPE html><html lang="{{ ui_language }}"><head>
+<meta charset="utf-8"><meta content="width=device-width,initial-scale=1" name="viewport">
+<meta content="{{ token }}" name="opcua-token">
+<meta name="space-analyzer-language" content="{{ ui_language }}">
+<title>Space Fieldbus Analyzer · V{{ version }}</title>
+<link rel="icon" href="/static/space-analyzer.ico" type="image/x-icon"><link href="/static/style.css" rel="stylesheet"><link href="/static/live-api.css" rel="stylesheet">
+<script defer="" src="/static/i18n-catalog.js"></script><script defer="" src="/static/i18n.js"></script><script defer="" src="/static/mode.js"></script>
+</head>
+<body class="light-page">
+<header><div class="light-brand"><img src="/static/space-analyzer-logo.png" alt="Space Fieldbus Analyzer"><div><div class="eyebrow">SPACE FIELDBUS ANALYZER</div><h1>V{{ version }}</h1></div></div>
+<button class="header-button" id="mode-close" type="button" data-i18n="Chiudi applicazione">Chiudi applicazione</button></header>
+<main class="mode-page">
+<h2 class="mode-title" data-i18n="Scegli la modalità di avvio">Scegli la modalità di avvio</h2>
+<div class="mode-choices">
+<button class="mode-choice" id="mode-sfa" type="button"><strong>Space Fieldbus Analyzer</strong><span data-i18n="Interfaccia completa: Live, Registrazioni, Conversione, Database e strumenti di analisi.">Interfaccia completa: Live, Registrazioni, Conversione, Database e strumenti di analisi.</span></button>
+<button class="mode-choice" id="mode-api" type="button"><strong>Live Acquisition API</strong><span data-i18n="Servizio per sistemi esterni: acquisizioni temporanee richieste via REST e inviate via WebSocket. Si apre solo la pagina di monitoraggio delle richieste; l'interfaccia di SFA non viene caricata e il PC resta leggero.">Servizio per sistemi esterni: acquisizioni temporanee richieste via REST e inviate via WebSocket. Si apre solo la pagina di monitoraggio delle richieste; l'interfaccia di SFA non viene caricata e il PC resta leggero.</span></button>
+</div>
+<p class="small mode-note" data-i18n="La modalità resta attiva fino alla chiusura dell'applicazione. Per avviare direttamente una modalità: --mode sfa oppure --mode api.">La modalità resta attiva fino alla chiusura dell'applicazione. Per avviare direttamente una modalità: --mode sfa oppure --mode api.</p>
+<p class="mode-error" hidden="" id="mode-error" role="alert"></p>
+</main>
+</body></html>

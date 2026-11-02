@@ -1,0 +1,88 @@
+<!DOCTYPE html><html lang="{{ ui_language }}"><head>
+<meta charset="utf-8"><meta content="width=device-width,initial-scale=1" name="viewport">
+<meta content="{{ token }}" name="opcua-token">
+<meta name="space-analyzer-language" content="{{ ui_language }}">
+<title>Live Acquisition API · Space Fieldbus Analyzer V{{ version }}</title>
+<link rel="icon" href="/static/space-analyzer.ico" type="image/x-icon"><link href="/static/style.css" rel="stylesheet"><link href="/static/live-api.css" rel="stylesheet">
+<script defer="" src="/static/i18n-catalog.js"></script><script defer="" src="/static/i18n.js"></script><script defer="" src="/static/live-api.js"></script>
+</head>
+<body class="light-page">
+<header><div class="light-brand"><img src="/static/space-analyzer-logo.png" alt="Space Fieldbus Analyzer"><div><div class="eyebrow">SPACE FIELDBUS ANALYZER · V{{ version }}</div><h1>Live Acquisition API</h1></div></div>
+<div class="toolbar"><span class="status" id="api-listener-status" role="status"></span><button class="header-button" id="api-close" type="button" data-i18n="Chiudi applicazione">Chiudi applicazione</button></div></header>
+<main class="api-page">
+<section class="api-metrics card" aria-label="Riepilogo" data-i18n-aria-label="Riepilogo">
+<div><span data-i18n="Sessioni attive">Sessioni attive</span><strong id="api-active">0</strong></div>
+<div><span data-i18n="Richieste ricevute">Richieste ricevute</span><strong id="api-requests">0</strong></div>
+<div><span data-i18n="Sessioni create">Sessioni create</span><strong id="api-created">0</strong></div>
+<div><span data-i18n="Sorgenti aperte">Sorgenti aperte</span><strong id="api-sources">—</strong></div>
+<div><span data-i18n="Memoria del PC">Memoria del PC</span><strong id="api-memory">—</strong></div>
+</section>
+
+<section class="card api-sessions-card">
+<div class="section-title"><h2>01 <span data-i18n="Sessioni attive">Sessioni attive</span></h2><span class="small" id="api-updated"></span></div>
+<div class="api-table-wrap"><table class="api-table"><thead><tr><th data-i18n="Sessione">Sessione</th><th>requestId</th><th data-i18n="Client">Client</th><th data-i18n="Sorgente">Sorgente</th><th data-i18n="Segnali">Segnali</th><th data-i18n="Periodo">Periodo</th><th data-i18n="Stato">Stato</th><th>WebSocket</th><th data-i18n="Sequenza">Sequenza</th><th data-i18n="Campioni inviati">Campioni inviati</th><th data-i18n="Scade">Scade</th><th></th></tr></thead>
+<tbody id="api-session-rows"></tbody></table></div>
+<p class="empty" id="api-no-sessions" data-i18n="Nessuna sessione attiva. Le richieste dei sistemi esterni compaiono qui.">Nessuna sessione attiva. Le richieste dei sistemi esterni compaiono qui.</p>
+<div id="api-session-details"></div>
+</section>
+
+<section class="card">
+<div class="section-title"><h2>02 <span data-i18n="Richieste ricevute">Richieste ricevute</span></h2><span class="small" data-i18n="Ultime 300 richieste REST, la più recente in alto.">Ultime 300 richieste REST, la più recente in alto.</span></div>
+<div class="api-table-wrap api-log-wrap"><table class="api-table"><thead><tr><th data-i18n="Ora">Ora</th><th data-i18n="Client">Client</th><th data-i18n="Metodo">Metodo</th><th data-i18n="Percorso">Percorso</th><th>HTTP</th><th>ms</th><th data-i18n="Esito">Esito</th><th>requestId</th></tr></thead>
+<tbody id="api-request-rows"></tbody></table></div>
+<p class="empty" id="api-no-requests" data-i18n="Nessuna richiesta ricevuta.">Nessuna richiesta ricevuta.</p>
+</section>
+
+<section class="card">
+<div class="section-title"><h2>03 <span data-i18n="Prova sul PC">Prova sul PC</span></h2></div>
+<p class="small" data-i18n="La pagina fa da sistema esterno: chiede una sessione all'API e riceve i campioni su un ricevitore WebSocket interno, per verificare l'intera catena su questo PC.">La pagina fa da sistema esterno: chiede una sessione all'API e riceve i campioni su un ricevitore WebSocket interno, per verificare l'intera catena su questo PC.</p>
+<div class="api-test-grid">
+<div><label for="test-source" data-i18n="Sorgente">Sorgente</label><select id="test-source"></select></div>
+<div><label for="test-address" data-i18n="Indirizzo">Indirizzo</label><input class="mono" id="test-address" placeholder="DB200.DBD56"></div>
+<div><label for="test-type" data-i18n="Tipo">Tipo</label><select id="test-type"></select></div>
+<div><label for="test-unit" data-i18n="Unità">Unità</label><input id="test-unit" placeholder="°C"></div>
+<div><label for="test-period" data-i18n="Periodo (ms)">Periodo (ms)</label><input id="test-period" type="number" min="1" value="250"></div>
+<div><label for="test-ttl">TTL (s)</label><input id="test-ttl" type="number" min="1" value="300"></div>
+</div>
+<div class="toolbar space-top"><button class="primary" id="test-start" type="button">START</button><button class="ghost" id="test-stop" type="button" disabled>STOP</button><button class="ghost" id="test-clear" type="button" data-i18n="Pulisci grafico">Pulisci grafico</button></div>
+<div class="api-test-state small" id="test-state" role="status"></div>
+<div class="api-chart"><canvas id="test-chart" aria-label="Campioni ricevuti" data-i18n-aria-label="Campioni ricevuti"></canvas></div>
+<pre class="logs-content api-log" id="test-log"></pre>
+</section>
+
+<section class="card">
+<div class="section-title"><h2>04 <span data-i18n="Connessione per i sistemi esterni">Connessione per i sistemi esterni</span></h2></div>
+<p class="small" data-i18n="Indirizzi della Live Acquisition API da comunicare al sistema esterno:">Indirizzi della Live Acquisition API da comunicare al sistema esterno:</p>
+<ul class="mono api-urls" id="api-urls"></ul>
+<p class="api-error" hidden="" id="api-listener-error" role="alert"></p>
+<div class="api-key-row"><label for="api-key" data-i18n="Chiave API (intestazione X-Api-Key o Authorization: Bearer)">Chiave API (intestazione X-Api-Key o Authorization: Bearer)</label>
+<div class="row"><input class="mono" id="api-key" readonly type="password"><button class="ghost" id="api-key-show" type="button" data-i18n="Mostra">Mostra</button><button class="ghost" id="api-key-copy" type="button" data-i18n="Copia">Copia</button><button class="ghost" id="api-key-new" type="button" data-i18n="Nuova chiave">Nuova chiave</button></div></div>
+<p class="small" id="api-configured"></p>
+<details class="security-details"><summary data-i18n="Impostazioni">Impostazioni</summary>
+<div class="api-settings-grid">
+<div><label for="set-port" data-i18n="Porta">Porta</label><input id="set-port" type="number" min="1024" max="65535"></div>
+<div><label for="set-bind" data-i18n="Indirizzo di ascolto">Indirizzo di ascolto</label><input class="mono" id="set-bind"></div>
+<div><label for="set-max-sessions" data-i18n="Sessioni contemporanee">Sessioni contemporanee</label><input id="set-max-sessions" type="number" min="1"></div>
+<div><label for="set-max-signals" data-i18n="Segnali per sessione">Segnali per sessione</label><input id="set-max-signals" type="number" min="1"></div>
+<div><label for="set-min-sampling" data-i18n="Periodo minimo (ms)">Periodo minimo (ms)</label><input id="set-min-sampling" type="number" min="1"></div>
+<div><label for="set-max-ttl" data-i18n="TTL massimo (s)">TTL massimo (s)</label><input id="set-max-ttl" type="number" min="10"></div>
+<div><label for="set-reconnect-delay" data-i18n="Riconnessione: attesa iniziale (ms)">Riconnessione: attesa iniziale (ms)</label><input id="set-reconnect-delay" type="number" min="100"></div>
+<div><label for="set-reconnect-attempts" data-i18n="Riconnessione: tentativi massimi">Riconnessione: tentativi massimi</label><input id="set-reconnect-attempts" type="number" min="0"></div>
+<div><label for="set-reconnect-timeout" data-i18n="Riconnessione: tempo massimo (s)">Riconnessione: tempo massimo (s)</label><input id="set-reconnect-timeout" type="number" min="1"></div>
+<div><label for="set-batch" data-i18n="Invio campioni ogni (ms)">Invio campioni ogni (ms)</label><input id="set-batch" type="number" min="20"></div>
+</div>
+<label for="set-targets" data-i18n="Host autorizzati per lo streamTarget (uno per riga; questo PC è sempre autorizzato)">Host autorizzati per lo streamTarget (uno per riga; questo PC è sempre autorizzato)</label><textarea class="mono" id="set-targets" rows="3"></textarea>
+<label for="set-aliases" data-i18n="Alias delle sorgenti (uno per riga, ad esempio PLC01=s7)">Alias delle sorgenti (uno per riga, ad esempio PLC01=s7)</label><textarea class="mono" id="set-aliases" rows="3"></textarea>
+<label class="checkline space-top"><input id="set-require-key" type="checkbox"> <span data-i18n="Richiedi la chiave API (consigliato)">Richiedi la chiave API (consigliato)</span></label>
+<div class="toolbar space-top"><button class="save" id="api-save" type="button" data-i18n="Salva impostazioni">Salva impostazioni</button><span class="small" id="api-save-status" role="status"></span></div>
+</details>
+</section>
+
+<section class="card">
+<div class="section-title"><h2>05 <span data-i18n="Sessioni terminate">Sessioni terminate</span></h2></div>
+<div class="api-table-wrap"><table class="api-table"><thead><tr><th data-i18n="Sessione">Sessione</th><th>requestId</th><th data-i18n="Client">Client</th><th data-i18n="Fine">Fine</th><th data-i18n="Motivo">Motivo</th><th data-i18n="Campioni inviati">Campioni inviati</th><th data-i18n="Riconnessioni">Riconnessioni</th><th data-i18n="Ultimo errore">Ultimo errore</th></tr></thead>
+<tbody id="api-ended-rows"></tbody></table></div>
+</section>
+<div class="message" hidden="" id="msg" role="status"></div>
+</main>
+</body></html>

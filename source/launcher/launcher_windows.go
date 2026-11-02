@@ -29,7 +29,7 @@ var payload []byte
 //go:embed payload.sha256
 var payloadDigest string
 
-const version = "3.17.2"
+const version = "4.0.0"
 
 func message(text string) {
 	title, _ := syscall.UTF16PtrFromString("Space Fieldbus Analyzer V" + version)
@@ -327,7 +327,8 @@ func run() error {
 		command.Stdout, command.Stderr, command.Stdin = os.Stdout, os.Stderr, os.Stdin
 		return command.Run()
 	}
-	command := exec.Command(service)
+	// Options such as --mode api reach the service.
+	command := exec.Command(service, os.Args[1:]...)
 	command.Dir = runtimeDir
 	command.Env = environment(appDir, runtimeDir, dataDir)
 	command.Stderr = logFile

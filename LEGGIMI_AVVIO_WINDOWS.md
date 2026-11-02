@@ -1,8 +1,8 @@
-# Avvio di Space Fieldbus Analyzer 3 su Windows
+# Avvio di Space Fieldbus Analyzer 4 su Windows
 
 1. Apri la sezione **Releases** del repository e scarica dall’ultima release il file `Space_Fieldbus_Analyzer_V<versione>_WINDOWS.zip` (ad esempio `Space_Fieldbus_Analyzer_V3.0.0_WINDOWS.zip`). In alternativa puoi scaricare il solo EXE.
 2. Clic destro sullo ZIP → **Estrai tutto**. Scegli una cartella scrivibile, ad esempio `Documenti\Space Fieldbus Analyzer`.
-3. Fai doppio clic su **Space_Fieldbus_Analyzer_V<versione>.exe**. Al centro dello schermo compare il logo con la barra di avvio; al termine si apre la finestra dell’applicazione (Microsoft Edge in modalità applicazione, senza schede né barra degli indirizzi).
+3. Fai doppio clic su **Space_Fieldbus_Analyzer_V<versione>.exe**. Al centro dello schermo compare il logo con la barra di avvio; al termine si apre la finestra dell’applicazione (Microsoft Edge in modalità applicazione, senza schede né barra degli indirizzi) con la **scelta della modalità**: **Space Fieldbus Analyzer** (interfaccia completa) oppure **Live Acquisition API** (servizio per sistemi esterni, vedi sotto). La modalità resta attiva fino alla chiusura; `Space_Fieldbus_Analyzer_V<versione>.exe --mode sfa` oppure `--mode api` la sceglie senza passare dalla pagina iniziale.
 4. Se la finestra non si apre, visita `http://127.0.0.1:5000`; se la porta è occupata il software usa una delle successive (fino a 5019).
 5. Nel popup **Connessione** configura i collegamenti. Attiva **Acquisizione simultanea** per usare insieme OPC UA, ADS, MQTT e S7, quindi premi **Connetti e leggi**.
 
@@ -13,6 +13,7 @@
 - Menu **Database**: pagine InfluxDB e PostgreSQL per leggere serie temporali dai database (sola lettura), con grafici ed esportazione in CSV, Parquet, FDA o RBF.
 - Pagina **Conversione**: un file CSV, Parquet, FDA (.das), RBF o DAT si converte in CSV, Parquet, FDA o RBF (segnali e intervallo a scelta); il risultato va nella sottocartella `Conversioni` delle registrazioni e l’originale non viene modificato.
 - Grafici: doppio clic su un segnale per aprirlo in un nuovo grafico; trascina un canale della legenda su un altro per condividere la scala Y (tasto destro sulla legenda per separarla).
+- Modalità **Live Acquisition API**: un sistema esterno chiede via REST (`POST /api/v1/live-sessions`, porta 5180, chiave API) l’acquisizione temporanea di segnali delle sorgenti salvate in SFA e riceve i campioni in tempo reale su un WebSocket che l’applicazione apre verso l’indirizzo indicato. Si apre solo una pagina di monitoraggio delle richieste, con prova sul PC; l’interfaccia di SFA non viene caricata. Windows può chiedere di consentire l’accesso di rete al primo avvio in questa modalità. Dettagli nel capitolo 16 della guida.
 - Al primo avvio di una nuova versione il servizio viene estratto nella cartella dati (qualche secondo); gli avvii successivi riutilizzano i file già estratti.
 
 ## Novità
@@ -38,6 +39,6 @@ Se non si avvia, consulta `launcher-v<versione>.log`, `opcua-client.log` ed even
 
 ## Verifiche e componenti esterni
 
-La Release viene pubblicata soltanto dopo: compilazione e test unitari C#, 28 workflow dell’interfaccia reale contro il servizio C# con peer locali OPC UA, ADS, MQTT, S7 e SSH, build dell’EXE su Windows, avvio del vero EXE con quattro sessioni indipendenti, registrazione e rilettura CSV, Parquet, FDA/DAS4 e RBF, verifica della cattura primaria, registrazioni sovrapposte, seconda apertura e arresto. Il rapporto è `WINDOWS_EXE_VERIFICATION.json`; gli hash sono in `SHA256SUMS.txt`.
+La Release viene pubblicata soltanto dopo: compilazione e test unitari C#, 29 workflow dell’interfaccia reale contro il servizio C# con peer locali OPC UA, ADS, MQTT, S7 e SSH (compresa la Live Acquisition API con WebSocket), build dell’EXE su Windows, avvio del vero EXE con quattro sessioni indipendenti, registrazione e rilettura CSV, Parquet, FDA/DAS4 e RBF, verifica della cattura primaria, registrazioni sovrapposte, seconda apertura e arresto, avvio con `--mode api` e risposta della Live Acquisition API. Il rapporto è `WINDOWS_EXE_VERIFICATION.json`; gli hash sono in `SHA256SUMS.txt`.
 
 I test non sostituiscono prove con PLC e reti industriali. ADS nativo richiede TwinCAT/TcAdsDll e la route appropriata. **S7 simbolico** (S7CommPlus) è implementato con la libreria S7CommPlusDriver ma va verificato su una CPU S7-1200/1500 reale: l’emulatore di test non supporta l’autenticazione. Per connessioni OPC UA protette occorre autorizzare il certificato client sul server e acquisire o importare il certificato del server. Le licenze dei componenti di terze parti sono in `THIRD_PARTY_NOTICES.txt` e nella cartella `licenses` dello ZIP.

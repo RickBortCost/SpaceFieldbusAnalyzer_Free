@@ -79,13 +79,16 @@ public sealed class Api(AppRuntime rt, SshService ssh, string token, Action shut
         app.MapGet("/", ctx =>
         {
             var code = rt.Config.Load()["ui_language"].Str() ?? "it";
-            var html = Templates.Render(Paths.Templates, "index.html", new Dictionary<string, string>
+            // Until a mode is chosen the start page asks for it; in API mode only the light monitor page is loaded.
+            var page = LiveApi.AppMode.Current switch { "" => "mode.html", "api" => "live_api.html", _ => "index.html" };
+            var html = Templates.Render(Paths.Templates, page, new Dictionary<string, string>
             {
                 ["version"] = Defaults.Version, ["token"] = token, ["ui_language"] = Defaults.Languages.Contains(code) ? code : "it",
             });
             ctx.Response.ContentType = "text/html; charset=utf-8";
             return ctx.Response.WriteAsync(html);
         });
+        MapMode(app);
         MapConfig(app);
         MapSources(app);
         MapRecording(app);
@@ -132,6 +135,79 @@ public sealed class Api(AppRuntime rt, SshService ssh, string token, Action shut
             ThreadPool.QueueUserWorkItem(_ => { Thread.Sleep(400); shutdown(); });
             return Task.FromResult<object?>(Ok());
         });
+    }
+
+    // ---- Mode and Live Acquisition API monitor (local page; the API itself listens on its own port) -----------------------
+
+    void MapMode(WebApplication app)
+    {
+        Get(app, "/api/mode", _ => Task.FromResult<object?>(Ok(("mode", LiveApi.AppMode.Current))));
+        Post(app, "/api/mode", async ctx =>
+        {
+            await LiveApi.AppMode.Choose((await Http.Object(ctx))["mode"].Str() ?? "", rt);
+            return Ok(("mode", LiveApi.AppMode.Current));
+        });
+        LiveApi.LiveApiMode LiveMode() => LiveApi.AppMode.Api ?? throw new UserError("Modalità Live Acquisition API non attiva");
+        Get(app, "/api/live-api/status", _ =>
+        {
+            var live = LiveMode();
+            return Task.FromResult<object?>(live.Service.Monitor(live.Host.Describe()));
+        });
+        Post(app, "/api/live-api/settings", async ctx =>
+        {
+            var live = LiveMode();
+            var data = await Http.Object(ctx);
+            var before = live.Service.Settings;
+            live.Service.UpdateSettings(data);
+            var after = live.Service.Settings;
+            if (before.Port != after.Port || before.Bind != after.Bind || live.Host.ListeningPort == null) await live.Host.Restart();
+            return Ok(("settings", after.ToPlain(includeKey: true)), ("listener", live.Host.Describe()));
+        });
+        Post(app, "/api/live-api/key", _ => Task.FromResult<object?>(Ok(("api_key", LiveMode().Service.RegenerateKey()))));
+        Post(app, "/api/live-api/listener/restart", async _ =>
+        {
+            var live = LiveMode();
+            await live.Host.Restart();
+            return Ok(("listener", live.Host.Describe()));
+        });
+        Post(app, "/api/live-api/sessions/stop", async ctx =>
+        {
+            var id = (await Http.Object(ctx))["sessionId"].Str() ?? "";
+            if (!await LiveMode().Service.Delete(id)) throw new UserError("Sessione non trovata");
+            return Ok();
+        });
+        // Built-in test: the page plays the external system, SFA streams to its own receiver (whole chain on this PC).
+        Post(app, "/api/live-api/test/start", async ctx =>
+        {
+            var live = LiveMode();
+            if (live.Host.ListeningPort is not int port) throw new UserError("Live Acquisition API non in ascolto: " + live.Host.Error);
+            var data = await Http.Object(ctx);
+            var requestId = "prova-" + Convert.ToHexString(RandomNumberGenerator.GetBytes(3)).ToLowerInvariant();
+            var body = new JsonObject
+            {
+                ["requestId"] = requestId, ["sourceId"] = data["sourceId"]?.DeepClone(),
+                ["signals"] = new JsonArray(new JsonObject
+                {
+                    ["signalId"] = data["signalId"].Str() is { Length: > 0 } sid ? sid : "segnale-prova", ["address"] = data["address"]?.DeepClone(),
+                    ["dataType"] = data["dataType"]?.DeepClone(), ["unit"] = data["unit"]?.DeepClone(),
+                }),
+                ["samplingPeriodMs"] = data["samplingPeriodMs"]?.DeepClone(), ["ttlSeconds"] = data["ttlSeconds"]?.DeepClone(),
+                ["streamTarget"] = new JsonObject { ["protocol"] = "websocket", ["url"] = $"ws://127.0.0.1:{port}/api/v1/test-receiver/{requestId}" },
+            };
+            var started = System.Diagnostics.Stopwatch.GetTimestamp();
+            try
+            {
+                var session = await live.Service.Create(body, "pagina di monitoraggio");
+                live.Service.Record("pagina di monitoraggio", "POST", "/api/v1/live-sessions", 201, System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds, null, requestId);
+                return Ok(("session", session.Describe()));
+            }
+            catch (LiveApi.LiveApiException exc)
+            {
+                live.Service.Record("pagina di monitoraggio", "POST", "/api/v1/live-sessions", exc.HttpStatus, System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds, exc.Code, requestId);
+                throw new UserError(exc.Code + ": " + exc.Message);
+            }
+        });
+        Get(app, "/api/live-api/test/data", ctx => Task.FromResult<object?>(Ok(("stream", LiveMode().Receiver.Describe(Http.Query(ctx, "requestId"))))));
     }
 
     // ---- PostgreSQL (read-only): connection, tables with time series, time series for the charts, export ----------------

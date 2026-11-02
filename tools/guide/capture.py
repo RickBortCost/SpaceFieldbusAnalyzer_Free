@@ -142,7 +142,8 @@ class Stack:
     # ---- servizio ---------------------------------------------------------------------------------------------------
     def start_service(self):
         port = free_port()
-        env = dict(os.environ, OPCUA_DATA_DIR=str(self.data), OPCUA_APP_DIR=str(self.app), OPCUA_NO_BROWSER='1', OPCUA_WEB_PORT=str(port), SPACE_BASE_DIR=str(SOURCE))
+        env = dict(os.environ, OPCUA_DATA_DIR=str(self.data), OPCUA_APP_DIR=str(self.app), OPCUA_NO_BROWSER='1', OPCUA_WEB_PORT=str(port), SPACE_BASE_DIR=str(SOURCE),
+                   SPACE_MODE='sfa', TZ='Europe/Rome')
         self.log = (self.tmp / 'service.log').open('w')
         self.process = subprocess.Popen(app_command(), env=env, stdout=self.log, stderr=subprocess.STDOUT)
         self.base = f'http://127.0.0.1:{port}'
@@ -154,7 +155,31 @@ class Stack:
                 time.sleep(.3)
         raise RuntimeError('servizio non avviato')
 
+    def start_api_service(self):
+        """Second service in its own data folder, without a preset mode: start page and Live Acquisition API mode."""
+        port = free_port()
+        data = self.tmp / 'api-data'
+        data.mkdir(exist_ok=True)
+        env = dict(os.environ, OPCUA_DATA_DIR=str(data), OPCUA_APP_DIR=str(self.app), OPCUA_NO_BROWSER='1', OPCUA_WEB_PORT=str(port), SPACE_BASE_DIR=str(SOURCE),
+                   SPACE_MODE='', TZ='Europe/Rome')
+        self.api_log = (self.tmp / 'service-api.log').open('w')
+        self.api_process = subprocess.Popen(app_command(), env=env, stdout=self.api_log, stderr=subprocess.STDOUT)
+        self.api_base = f'http://127.0.0.1:{port}'
+        for _ in range(100):
+            try:
+                urllib.request.urlopen(self.api_base + '/', timeout=2).read(10)
+                return
+            except Exception:
+                time.sleep(.3)
+        raise RuntimeError('servizio API non avviato')
+
     def stop(self):
+        if getattr(self, 'api_process', None):
+            self.api_process.terminate()
+            try:
+                self.api_process.wait(10)
+            except Exception:
+                self.api_process.kill()
         if self.process:
             self.process.terminate()
             try:
@@ -258,7 +283,7 @@ def main():
     args = parser.parse_args()
     import figures
     if args.list:
-        print('\n'.join(figures.ORDER))
+        print('\n'.join(figures.ORDER + figures.API_ORDER))
         return
     only = [x for x in args.only.split(',') if x]
     from playwright.sync_api import sync_playwright
@@ -271,12 +296,15 @@ def main():
             stack.start_postgres()
         stack.start_service()
         with sync_playwright() as p:
-            browser = p.chromium.launch()
+            # CHROMIUM_PATH: a Chromium already installed (when the Playwright browsers are not downloaded).
+            browser = p.chromium.launch(executable_path=os.environ.get('CHROMIUM_PATH') or None)
             context = browser.new_context(viewport={'width': 1920, 'height': 1080}, locale='it-IT', timezone_id='Europe/Rome')
             page = context.new_page()
             page.on('pageerror', lambda e: print('  pageerror', e))
             shooter = Shooter(stack, page)
             figures.run(shooter, stack, only)
+            if not only or any(name in only for name in figures.API_ORDER):
+                figures.run_api(shooter, stack, only)
             browser.close()
     finally:
         stack.stop()

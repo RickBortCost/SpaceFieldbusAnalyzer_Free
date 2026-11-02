@@ -62,7 +62,7 @@ def main():
     else:
         app=args.app.absolute()
         command=[os.environ.get('DOTNET','dotnet'),str(app)] if app.suffix=='.dll' else [str(app)]
-    build=json.loads((args.exe.parent/'BUILD_MANIFEST.json').read_text('utf-8')) if packaged else {'version':'3.17.2'}
+    build=json.loads((args.exe.parent/'BUILD_MANIFEST.json').read_text('utf-8')) if packaged else {'version':'4.0.0'}
     report={'version':build['version'],'tested_at':datetime.now(timezone.utc).isoformat(),
             'platform':sys.platform,'packaged_exe_executed':packaged,'formats':{},
             'hardware_tested':False,'result':'FAIL'}
@@ -83,7 +83,9 @@ def main():
                 'OPCUA_APP_DIR':str(data/'application'),'OPCUA_NO_BROWSER':'1','OPCUA_WEB_PORT':str(port),
                 # Gancio di prova: il salvataggio della sessione "Slow previous" resta in sospeso finché non viene rilasciato,
                 # così la sovrapposizione con la registrazione successiva non dipende dalla velocità del PC.
-                'SPACE_TEST_HOOKS':'1'}
+                'SPACE_TEST_HOOKS':'1',
+                # The complete interface is checked first; the Live Acquisition API mode is started afterwards with --mode api.
+                'SPACE_MODE':'sfa'}
             if packaged:
                 # The child receives no installed Python/.NET/Go path: the service and
                 # its self-contained .NET runtime must come from the embedded ZIP.
@@ -222,7 +224,34 @@ def main():
                 process.wait(timeout=45)
                 if process.returncode!=0:raise RuntimeError('Service/launcher shutdown failed')
                 if list((data/'settings/live_analysis_cache').rglob('*.sqlite')):raise RuntimeError('Temporary original history was not cleaned on shutdown')
-                report.update(shutdown_verified=True,temporary_history_cleanup_verified=True,result='PASS')
+                report.update(shutdown_verified=True,temporary_history_cleanup_verified=True)
+                # Live Acquisition API mode: option passed by the launcher, light page only, own network listener with the API key.
+                api_data=data/'api-settings';api_data.mkdir()
+                with socket.socket() as sock:
+                    sock.bind(('127.0.0.1',0));api_port=sock.getsockname()[1]
+                (api_data/'live_api.json').write_text(json.dumps({'port':api_port,'bind':'127.0.0.1'}),encoding='utf-8')
+                api_env={**env,'OPCUA_DATA_DIR':str(api_data)};api_env.pop('SPACE_MODE',None)
+                process=subprocess.Popen(command+['--mode','api'],env=api_env,stdout=log,stderr=log)
+                instance=api_data/'instance.json'
+                info=until(ready)
+                base='http://127.0.0.1:'+str(info['port'])
+                with opener.open(base,timeout=10) as response:html=response.read().decode('utf-8')
+                if 'live-api.js' not in html or '/static/app.js' in html:raise RuntimeError('API mode did not open the monitor page only')
+                token=TokenParser();token.feed(html)
+                if api('/api/mode')['mode']!='api':raise RuntimeError('--mode api not applied')
+                listener=until(lambda:api('/api/live-api/status')['listener'] if api('/api/live-api/status')['listener']['listening'] else None,timeout=30)
+                if listener['port']!=api_port:raise RuntimeError('Live Acquisition API on an unexpected port')
+                with opener.open('http://127.0.0.1:'+str(api_port)+'/api/v1/health',timeout=10) as response:health=json.load(response)
+                if health['version']!=build['version'] or health['mode']!='live-api':raise RuntimeError('Live Acquisition API health differs')
+                try:
+                    opener.open(Request('http://127.0.0.1:'+str(api_port)+'/api/v1/live-sessions',data=b'{}',headers={'Content-Type':'application/json'}),timeout=10)
+                    raise RuntimeError('Live Acquisition API accepted a request without key')
+                except HTTPError as exc:
+                    if exc.code!=401:raise RuntimeError('Unexpected answer without key: '+str(exc.code)) from exc
+                api('/api/shutdown',{})
+                process.wait(timeout=45)
+                if process.returncode!=0:raise RuntimeError('Shutdown in API mode failed')
+                report.update(live_api_mode_verified=True,result='PASS')
     except Exception as exc:
         report['error']=str(exc)
         try:report['failure_health']=api('/api/acquisition/health')

@@ -160,7 +160,7 @@ class Service:
         (self.application / 'Recordings').mkdir(parents=True, exist_ok=True)
         port = free_port()
         env = dict(os.environ, OPCUA_DATA_DIR=str(self.data), OPCUA_APP_DIR=str(self.application), OPCUA_NO_BROWSER='1', OPCUA_WEB_PORT=str(port),
-                   SPACE_BASE_DIR=str(SOURCE), SPACE_TEST_HOOKS='1', **(extra or {}))
+                   SPACE_BASE_DIR=str(SOURCE), SPACE_TEST_HOOKS='1', **{'SPACE_MODE': 'sfa', **(extra or {})})
         self.log = (work / 'service.log').open('w')
         self.process = subprocess.Popen(app_command(), env=env, stdout=self.log, stderr=subprocess.STDOUT)
         self.base = f'http://127.0.0.1:{port}'
@@ -279,7 +279,34 @@ def s7():
             shutil.rmtree(work, ignore_errors=True)
 
 
+def live_api():
+    """Live Acquisition API mode: the start page is shown (no preset mode), S7 simulator with a changing REAL."""
+    from s7_test_server import start_server
+    work = Path(tempfile.mkdtemp(prefix='space-ui-cs-'))
+    peer, port = start_server()
+    stop = threading.Event()
+
+    def vary():
+        i = 0
+        while not stop.wait(.05):
+            i += 1
+            struct.pack_into('>f', peer.test_buffers[0], 0, 40.0 + i % 50)
+    threading.Thread(target=vary, daemon=True).start()
+    service = Service(work, {'SPACE_MODE': ''})
+    try:
+        print(run_node(service, [str(port)]).stdout)
+    finally:
+        stop.set()
+        service.stop()
+        peer.stop()
+        peer.destroy()
+        if not os.environ.get('UI_KEEP'):
+            shutil.rmtree(work, ignore_errors=True)
+
+
 def main():
+    if SCRIPT == 'test_live_api_ui.cjs':
+        return live_api()
     if SCRIPT in MULTI:
         return multi()
     if SCRIPT == 'test_s7_ui.cjs':
