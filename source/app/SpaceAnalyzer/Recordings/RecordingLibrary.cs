@@ -26,6 +26,13 @@ public sealed partial class RecordingLibrary
 
     public string Directory { get; }
 
+    /// <summary>Drops the caches of views, markers, descriptions and summaries (memory pressure); they are rebuilt from the files.</summary>
+    public static void ClearCaches()
+    {
+        Views.Clear(); MarkerCache.Clear(); Descriptions.Clear(); Summaries.Clear(); OriginalHashes.Clear();
+        Pda3.ClearCache();
+    }
+
     public RecordingLibrary(string directory) => Directory = Path.GetFullPath(directory);
 
     static string Ext(string path) => Path.GetExtension(path).ToLowerInvariant();

@@ -340,4 +340,9 @@ public sealed class ReplayCache(int maxPoints = 250000, int maxItems = 32)
             points += weight;
         }
     }
+
+    public void Clear()
+    {
+        lock (gate) { items.Clear(); points = 0; }
+    }
 }

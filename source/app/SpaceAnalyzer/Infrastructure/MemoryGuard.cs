@@ -21,6 +21,9 @@ public static class MemoryGuard
     static string level = "ok";
     static DateTime lastCompaction = DateTime.MinValue;
 
+    /// <summary>Called (at most once a minute) while memory is low: caches that can be rebuilt are dropped.</summary>
+    public static event Action? Pressure;
+
     public static string Level { get { lock (Gate) return level; } }
     public static long AvailableBytes { get { lock (Gate) return available; } }
 
@@ -70,6 +73,7 @@ public static class MemoryGuard
             if (next != "ok" && DateTime.UtcNow - lastCompaction > TimeSpan.FromMinutes(1))
             {
                 lastCompaction = DateTime.UtcNow;
+                try { Pressure?.Invoke(); } catch (Exception exc) { Log.Warning("Svuotamento cache non riuscito: " + exc.Message); }
                 GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
                 GC.Collect(2, GCCollectionMode.Aggressive, blocking: true, compacting: true);
             }

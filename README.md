@@ -4,12 +4,13 @@
 
 **Download:** [ultima release](https://github.com/RickBortCost/SpaceAnalyzer_Free/releases/latest).
 
-## Novità della versione 3.17.1
+## Novità della versione 3.17.2
 
-- **Memoria del PC sotto controllo**: il servizio controlla la memoria disponibile ogni 5 s; quando scarseggia libera la propria, riduce il grafico Live alla parte recente e non apre file troppo grandi, mentre la registrazione continua. Motivo: un PC in acquisizione era diventato irraggiungibile per memoria esaurita.
-- **Grafico Live secondo la RAM**: in "Intera acquisizione" conserva circa 1,5 milioni di campioni per GB di RAM (prima fino a 40 milioni, circa 1,6 GB), meno con memoria bassa; lo storico caricato all'apertura della finestra ha lo stesso limite. Motivo: lasciare la memoria a TwinCAT e al sistema.
-- Tolta la modalità del garbage collector a bassa latenza introdotta nella 3.9.0. Motivo: lasciava crescere la memoria nelle acquisizioni lunghe.
-- Dalla 3.17.0: archivi primari esportati in file da 15 minuti; dalla 3.16.x: conversione dei progetti TwinCAT Scope (.svdx).
+- **Spazio su disco protetto**: il servizio controlla lo spazio libero ogni 10 s; sotto 1 GB chiude la registrazione in modo ordinato (file completi) invece di riempire il disco e bloccare il PC, e rifiuta nuove registrazioni, importazioni e conversioni senza spazio. Motivo: prima nessuna parte dell'applicazione controllava lo spazio libero.
+- **Storico Live** non porta più il disco sotto 5 GB liberi (prima occupava fino a 8 GB comunque). Motivo: lasciare lo spazio alle registrazioni.
+- **Archivi primari eliminabili** dalla pagina Conversione; copie dei file aperti dal PC rimosse dopo 30 giorni; registro eventi, file di crash e cache del browser limitati. Motivo: crescite senza limite della cartella dati e delle registrazioni.
+- **Memoria**: meno copie a ogni aggiornamento del Live e cache dei DAT PDA3 limitata e svuotata con memoria bassa. Motivo: completare le correzioni della 3.17.1.
+- Dalla 3.17.1: memoria del PC sotto controllo e grafico Live secondo la RAM; dalla 3.17.0: archivi primari esportati in file da 15 minuti.
 
 **Regola di pubblicazione:** ogni versione ha la sua sezione `## X.Y.Z` in `CHANGELOG.md` con tutte le modifiche e il motivo di ciascuna, e questa sezione "Novità" viene aggiornata a ogni rilascio con le ultime modifiche e il perché; il test `test_release_notes.py` blocca la pipeline se la sezione della versione corrente manca.
 

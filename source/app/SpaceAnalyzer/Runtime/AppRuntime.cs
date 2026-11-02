@@ -109,11 +109,12 @@ public sealed class AppRuntime : IDisposable
         Calculations.FaultCallback = (error, dropped) => Events.Emit("calculation_overflow", null, new() { ["protocol"] = "calculated", ["error"] = error, ["lost_batches"] = dropped });
         var stale = LiveArchive.RemoveStale(Path.Combine(paths.DataDir, "live_analysis_cache"));
         if (stale > 0) Log.Info($"Storico Live di sessioni precedenti rimosso: {stale / 1048576.0:F0} MiB liberati");
-        Archive = new LiveArchive(Path.Combine(paths.DataDir, "live_analysis_cache"));
+        Archive = new LiveArchive(Path.Combine(paths.DataDir, "live_analysis_cache"), spareDisk: () => DiskGuard.SpareBeforeLow("data"));
         Library = new RecordingLibrary(paths.RecordingsDir);
         Imported = new RecordingLibrary(paths.ImportedRecordingsDir);
         Comparisons = new Comparisons(paths.ImportedRecordingsDir);
         Conversions = new Conversions(() => Path.Combine(paths.RecordingsDir, Conversions.Folder));
+        Conversions.RecordingBusy = () => Recording.Acquiring || Recording.Busy;
         Recovery = new PrimaryRecovery(Path.Combine(paths.RecordingsDir, ".primary"), Events);
         liveThread = new Thread(LiveLoop) { IsBackground = true, Name = "live-display" };
         liveThread.Start();
@@ -640,8 +641,11 @@ public sealed class AppRuntime : IDisposable
         Dictionary<string, object?> diag;
         lock (Lock)
         {
-            points = samples.ToDictionary(k => k.Key, k => view == "all" ? k.Value.Overview.Points() : k.Value.ToList());
-            var extent = points.Values.Where(v => v.Count > 0).SelectMany(v => new[] { v[0].T, v[^1].T }).ToList();
+            // The page polls without samples (it reads them as binary deltas): copying every buffer at each poll only made garbage.
+            points = withSamples ? samples.ToDictionary(k => k.Key, k => view == "all" ? k.Value.Overview.Points() : k.Value.ToList()) : new();
+            var extent = view == "all"
+                ? samples.Values.Select(b => b.Overview.Points()).Where(v => v.Count > 0).SelectMany(v => new[] { v[0].T, v[^1].T }).ToList()   // at most 256 buckets
+                : samples.Values.Where(b => b.First != null).SelectMany(b => new[] { b.First!.T, b.Last!.T }).ToList();
             values = Selected.Where(latest.ContainsKey).Select(n => latest[n]).Concat(calculatedLatest.Values).ToList();
             var connected = sessions.Values.Cast<Dictionary<string, object?>>().ToList();
             double Stat(string key) => connected.Select(s => s[key] is double d ? d : 0).DefaultIfEmpty(0).Max();
@@ -670,6 +674,8 @@ public sealed class AppRuntime : IDisposable
         diag["s7_udp"] = cfg["s7_mode"].Str() == "udp" ? Sub(Session("s7"), "diagnostics") : new();
         diag["ads_notifications"] = cfg["ads_mode"].Str() == "notify" ? Sub(Session("ads"), "diagnostics") : new();
         diag["memory"] = MemoryGuard.Report();
+        diag["disk"] = DiskGuard.Report();
+        diag["disk_stop"] = diskStopMessage;
         var source = (ActiveConfig ?? Config.Load())["source"].Str() ?? "opcua";
         var recording = Recording.Status();
         var calculations = Calculations.Status();
@@ -718,6 +724,8 @@ public sealed class AppRuntime : IDisposable
         {
             if (!Connected) throw new UserError("Client non connesso");
             if (Recording.Acquiring) throw new UserError("Una registrazione è già in corso o in fase di chiusura");
+            DiskGuard.Require(Recording.Directory, 0, "avviare la registrazione");
+            diskStopMessage = "";
             var format = data.Get("format").Str();
             var options = data.Get("options") as JsonObject ?? new JsonObject();
             if (format?.ToLowerInvariant() is not ("das" or "rbf"))
@@ -783,6 +791,37 @@ public sealed class AppRuntime : IDisposable
             return state;
         }
         finally { CommandLock.Release(); }
+    }
+
+    int diskStopping;
+    string diskStopMessage = "";
+
+    /// <summary>
+    /// The disk of the recordings is nearly full: the running recording is closed in an orderly way while there is still room to
+    /// finalize its files, instead of failing on a full disk (which also stops Windows and the other programs of the PC).
+    /// </summary>
+    public void DiskCritical(string role)
+    {
+        if (role != "recordings" || Recording.Active == null || Interlocked.Exchange(ref diskStopping, 1) == 1) return;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await CommandLock.WaitAsync();
+                try
+                {
+                    if (Recording.Active == null || DiskGuard.Level("recordings") != "critical") return;
+                    var (_, free) = DiskGuard.Measure(Recording.Directory);
+                    diskStopMessage = $"Registrazione chiusa automaticamente: spazio su disco quasi esaurito in {Recording.Directory} (liberi {free >> 20} MB). I file scritti fino a questo momento sono completi; liberare spazio prima di registrare di nuovo.";
+                    Log.Warning(diskStopMessage);
+                    Events.Emit("recording_disk_full", null, new() { ["directory"] = Recording.Directory, ["free_mb"] = free >> 20 });
+                    await Task.Run(() => FinishRecording("disk_full", 5));
+                }
+                finally { CommandLock.Release(); }
+            }
+            catch (Exception exc) { Log.Error("Chiusura della registrazione per disco pieno non riuscita", exc); }
+            finally { Interlocked.Exchange(ref diskStopping, 0); }
+        });
     }
 
     /// <summary>finish_recording: fence arrivals, drain the queues, then stop the session.</summary>

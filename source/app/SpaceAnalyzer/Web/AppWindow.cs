@@ -30,7 +30,7 @@ public static class AppWindow
             Directory.CreateDirectory(profileDir);
             var info = new ProcessStartInfo(browser) { UseShellExecute = false };
             var size = Environment.GetEnvironmentVariable("SPACE_FULLSCREEN") == "0" ? "--start-maximized" : "--start-fullscreen";
-            foreach (var arg in new[] { "--app=" + url, "--user-data-dir=" + profileDir, "--no-first-run", "--no-default-browser-check", size })
+            foreach (var arg in new[] { "--app=" + url, "--user-data-dir=" + profileDir, "--no-first-run", "--no-default-browser-check", "--disk-cache-size=" + (64L << 20), size })
                 info.ArgumentList.Add(arg);
             var process = Process.Start(info) ?? throw new InvalidOperationException("processo non avviato");
             Log.Info($"Finestra applicazione aperta con {Path.GetFileName(browser)}");

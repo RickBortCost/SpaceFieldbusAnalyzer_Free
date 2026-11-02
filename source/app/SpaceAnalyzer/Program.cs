@@ -124,6 +124,17 @@ public static class Program
         throw new InvalidOperationException("L'applicazione è già in avvio. Attendere alcuni secondi e riprovare.");
     }
 
+    /// <summary>Keeps the 20 most recent crash reports of the data folder (a service restarted in a loop must not fill the disk).</summary>
+    static void RemoveOldCrashReports(string folder)
+    {
+        try
+        {
+            foreach (var file in new DirectoryInfo(folder).EnumerateFiles("crash-*.txt").OrderByDescending(f => f.LastWriteTimeUtc).Skip(20))
+                try { file.Delete(); } catch (Exception exc) when (exc is IOException or UnauthorizedAccessException) { }
+        }
+        catch (Exception exc) when (exc is IOException or UnauthorizedAccessException) { }
+    }
+
     static void Fatal(AppPaths paths, Exception? exc, string? thread)
     {
         var text = $"Space Fieldbus Analyzer V{Defaults.Version} - errore fatale {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}, thread {thread ?? "senza nome"}\n{exc}";
@@ -162,8 +173,20 @@ public static class Program
         catch (Exception exc) when (exc is IOException or UnauthorizedAccessException) { Log.Warning("Cartella temporanea non disponibile: " + exc.Message); }
         Engine.Core.EngineLog.Sink = Log.Info;
         Directory.CreateDirectory(paths.ImportedRecordingsDir);
+        try
+        {
+            var freed = Web.Import.Prune(paths.ImportedRecordingsDir, TimeSpan.FromDays(30), 20L << 30);
+            if (freed > 0) Log.Info($"File aperti dal PC non usati da 30 giorni rimossi dalla cartella dati: {freed >> 20} MB liberati");
+        }
+        catch (Exception exc) when (exc is IOException or UnauthorizedAccessException) { Log.Warning("Pulizia dei file importati non riuscita: " + exc.Message); }
         var runtime = new AppRuntime(paths);
+        MemoryGuard.Pressure += Recordings.RecordingLibrary.ClearCaches;
         MemoryGuard.Start();
+        DiskGuard.Watch("recordings", () => runtime.Recording.Directory);
+        DiskGuard.Watch("data", () => paths.DataDir);
+        DiskGuard.Critical += runtime.DiskCritical;
+        DiskGuard.Start();
+        RemoveOldCrashReports(paths.DataDir);
         runtime.Certs.RestoreSaved();
         runtime.Certs.BootstrapBundle();
         runtime.Initialize();

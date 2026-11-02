@@ -63,9 +63,12 @@ public sealed class LiveArchive : IDisposable
         return freed;
     }
 
-    public LiveArchive(string directory, int maxPending = 131072, long maxBytes = 8L * 1024 * 1024 * 1024, long maxPendingBytes = 128L * 1024 * 1024)
+    readonly Func<long>? spareDisk;
+
+    /// <param name="spareDisk">Bytes the disk can still take before its reserve: the window shrinks below <paramref name="maxBytes"/> when the disk is nearly full.</param>
+    public LiveArchive(string directory, int maxPending = 131072, long maxBytes = 8L * 1024 * 1024 * 1024, long maxPendingBytes = 128L * 1024 * 1024, Func<long>? spareDisk = null)
     {
-        this.directory = directory; this.maxBytes = maxBytes; this.maxPendingBytes = maxPendingBytes;
+        this.directory = directory; this.maxBytes = maxBytes; this.maxPendingBytes = maxPendingBytes; this.spareDisk = spareDisk;
         queue = new BlockingCollection<Item>(maxPending);
     }
 
@@ -366,9 +369,16 @@ public sealed class LiveArchive : IDisposable
     /// Rolling window: above the size limit the oldest originals (about 2 % of the retained time span per step, in separate short
     /// transactions so that writing is not stalled) are deleted instead of stopping the archive.
     /// </summary>
+    const string DiskMessage = "Storico Live sospeso: spazio su disco quasi esaurito (la registrazione con Record non è interessata; liberare spazio e riavviare Live)";
+
     void TrimIfNeeded(SqliteConnection c)
     {
-        for (var step = 0; step < 25 && UsedBytes(c) > maxBytes; step++)
+        var limit = maxBytes;
+        var spare = spareDisk?.Invoke() ?? long.MaxValue;
+        // Nearly full disk: the window shrinks (64 MiB at a time) instead of taking the space left to recordings; below 256 MiB it stops.
+        if (spare < long.MaxValue / 2) limit = Math.Min(maxBytes, UsedBytes(c) + spare - (64L << 20));
+        if (limit < 256L << 20 && limit < maxBytes) throw new InvalidDataException(DiskMessage);
+        for (var step = 0; step < 25 && UsedBytes(c) > limit; step++)
         {
             double min, max;
             using (var query = c.CreateCommand())
@@ -391,7 +401,8 @@ public sealed class LiveArchive : IDisposable
             transaction.Commit();
             lock (gate) trimmedUntil = Math.Max(trimmedUntil, cut);
         }
-        if (UsedBytes(c) > maxBytes) throw new InvalidDataException("Limite spazio storico Live raggiunto: impossibile liberare spazio");
+        if (UsedBytes(c) > limit)
+            throw new InvalidDataException(limit < maxBytes ? DiskMessage : "Limite spazio storico Live raggiunto: impossibile liberare spazio");
     }
 
     static void Exec(SqliteConnection c, string sql)

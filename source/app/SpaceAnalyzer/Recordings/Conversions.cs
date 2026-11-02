@@ -61,6 +61,9 @@ public sealed class Conversions(Func<string> directory)
         if (start != null && end != null && end < start) throw new UserError("L'intervallo deve avere una fine non precedente all'inizio");
         long? total = EstimateTotal(descriptor, signals.Count, available.Count, start, end);
         var estimated = start != null || end != null || signals.Count != available.Count;
+        // The output is about as large as the part of the source being converted (twice for a text format).
+        var size = start == null && end == null && File.Exists(path) ? new FileInfo(path).Length : 0;
+        DiskGuard.Require(directory(), (format == "csv" ? 2 : 1) * (size / Math.Max(1, available.Count)) * signals.Count, "la conversione");
         lock (gate)
         {
             if (closed) throw new UserError("Servizio di conversione arrestato");
@@ -145,6 +148,39 @@ public sealed class Conversions(Func<string> directory)
         return result;
     }
 
+    /// <summary>True while a recording is acquiring or closing (its primary capture is still a .sac.part being written).</summary>
+    public Func<bool> RecordingBusy { get; set; } = () => false;
+
+    /// <summary>
+    /// Deletes a primary capture of the ".primary" folder (each recording leaves one as large as its data, so the folder grows with
+    /// every recording). A capture added from another folder is only removed from the list; the one being written is refused.
+    /// </summary>
+    public Dictionary<string, object?> DeletePrimary(string? name)
+    {
+        lock (gate)
+            if (running != null && jobs.Values.Any(j => (string?)j["state"] == "running" && (string?)j["source"] == "primary" && (string?)j["name"] == name))
+                throw new UserError("Esportazione in corso da questo archivio: annullarla prima di eliminarlo");
+        if (name != null && !PrimaryExport.IsPrimaryName(name))
+        {
+            lock (gate)
+            {
+                var list = ExternalPrimary();
+                if (!list.Remove(name)) throw new UserError("Archivio primario non trovato");
+                Py.AtomicPlain(ExternalListPath(), list.Cast<object?>().ToList());
+            }
+            return new() { ["name"] = name, ["deleted"] = false, ["freed_bytes"] = 0L };
+        }
+        if (!PrimaryExport.IsPrimaryName(name)) throw new UserError("Selezionare un archivio primario (.sac)");
+        if (name!.EndsWith(".part", StringComparison.Ordinal) && RecordingBusy()) throw new UserError("Registrazione in corso: l'archivio primario in scrittura non può essere eliminato");
+        var path = Path.Combine(PrimaryDirectory(), name);
+        if (!File.Exists(path)) throw new UserError("Archivio primario non trovato");
+        var size = new FileInfo(path).Length;
+        try { File.Delete(path); }
+        catch (Exception exc) when (exc is IOException or UnauthorizedAccessException) { throw new UserError("Archivio primario in uso, non eliminato: " + exc.Message); }
+        Log.Info($"Archivio primario eliminato: {name} ({size >> 20} MB)");
+        return new() { ["name"] = name, ["deleted"] = true, ["freed_bytes"] = size };
+    }
+
     sealed record PrimaryJob(string Ident, string Path, string Name, string Format, List<string>? Signals, double? Start, double? End, double SplitMinutes);
 
     Dictionary<string, object?> StartPrimary(JsonNode? data)
@@ -197,10 +233,15 @@ public sealed class Conversions(Func<string> directory)
 
     void RunPrimary(PrimaryJob job, CancellationToken cancel)
     {
+        long checkedRows = 0;
         try
         {
             var result = PrimaryExport.Export(job.Path, job.Format, directory(), Config.Defaults.Version, job.Signals, job.Start, job.End,
-                rows => Update(job.Ident, ("rows_read", rows)), cancel, job.SplitMinutes);
+                rows =>
+                {
+                    Update(job.Ident, ("rows_read", rows));
+                    if (rows - checkedRows >= 65536) { checkedRows = rows; DiskGuard.Require(directory(), 0, "proseguire l'esportazione"); }
+                }, cancel, job.SplitMinutes);
             Update(job.Ident, ("state", "ready"), ("phase", "done"), ("rows_read", result.Samples), ("files", result.Files.Cast<object?>().ToList()),
                 ("warning", result.Warning), ("finished_at", Values.PythonIso(DateTime.UtcNow)));
             Log.Info($"Esportazione archivio primario {job.Name} -> {job.Format}: {result.Samples} campioni, {result.Files.Count} file" + (result.Warning != null ? " (" + result.Warning + ")" : ""));
@@ -380,7 +421,11 @@ public sealed class Conversions(Func<string> directory)
             stats.First = Math.Min(stats.First, t.Value);
             stats.Last = Math.Max(stats.Last, t.Value);
             stats.Rows++;
-            if (stats.Rows % 65536 == 0) Update(job.Ident, ("rows_read", stats.Rows), ("percent", Percent(job.Format, job.Total, "read", stats.Rows)));
+            if (stats.Rows % 65536 == 0)
+            {
+                Update(job.Ident, ("rows_read", stats.Rows), ("percent", Percent(job.Format, job.Total, "read", stats.Rows)));
+                DiskGuard.Require(directory(), 0, "proseguire la conversione");
+            }
             yield return row;
         }
     }
