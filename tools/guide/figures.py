@@ -573,3 +573,102 @@ def fig_postgres(sh, stack):
     sh.shot('pg_query', [(1, '#pg-query-saved'), (2, '#pg-query-name'), (3, '#pg-query-save'), (4, '#pg-query-new'), (5, '#pg-query-delete'), (6, '#pg-query-sql'), (7, '#pg-data-run'),
                          (8, '#pg-grid-wrap')])
     sh.js("()=>{uiPg.setPgView('chart');}")
+
+
+# ---- modalità Live Acquisition API (secondo servizio, senza modalità preimpostata) ------------------------------------------
+
+API_ORDER = ['mode_choice', 'live_api_monitor', 'live_api_test', 'live_api_settings']
+
+
+def http(url, body=None, headers=None, method=None):
+    import json
+    import urllib.error
+    import urllib.request
+    request = urllib.request.Request(url, data=None if body is None else json.dumps(body).encode(), method=method,
+                                     headers={'Content-Type': 'application/json', **(headers or {})})
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            raw = response.read()
+            return response.status, json.loads(raw) if raw else None
+    except urllib.error.HTTPError as exc:
+        raw = exc.read()
+        return exc.code, json.loads(raw) if raw else None
+
+
+def run_api(sh, stack, only):
+    import re
+    import socket
+    import urllib.request
+    wanted = lambda name: not only or name in only
+    # La connessione OPC UA dimostrativa salvata dalle figure SFA diventa la sorgente della Live Acquisition API.
+    nodes = {name: node_id(sh, name) for name in ('Temperatura', 'Pressione', 'Velocità')}
+    _, cfg = http(stack.base + '/api/config')
+    for key in ('client_cert_abs', 'client_key_abs', 'server_cert_abs', 'server_cert_present', 'server_cert_sha256', 'version', 'max_selected',
+                'saved_settings_present', 'saved_at', 'selected_nodes', 'saved_server_data', 'data_dir', 'recordings_dir', 'workspace', 'calculations', 'recording_busy'):
+        cfg.pop(key, None)
+    stack.start_api_service()
+    base = stack.api_base
+    token = re.search(r'content="([^"]+)" name="opcua-token"', urllib.request.urlopen(base).read().decode()).group(1)
+    local = lambda path, body=None: http(base + path, body, {'X-OPCUA-Token': token}, 'POST' if body is not None else None)[1]
+    local('/api/config', cfg)
+    sh.page.set_viewport_size({'width': 1920, 'height': 1080})
+    sh.page.goto(base + '/')
+    sh.wait(1200)
+    if wanted('mode_choice'):
+        sh.shot('mode_choice', [(1, '#mode-sfa'), (2, '#mode-api')], clip=(0, 0, 1920, 600))
+    local('/api/mode', {'mode': 'api'})
+    sh.wait(800)
+    listener = http(base + '/api/live-api/status')[1]['listener']
+    if listener['listening']:
+        port = listener['port']   # the default port 5180, as in the text of the guide
+    else:
+        with socket.socket() as s:
+            s.bind(('127.0.0.1', 0))
+            port = s.getsockname()[1]
+    local('/api/live-api/settings', {'port': port, 'bind': '127.0.0.1', 'source_aliases': {'PLC01': 'opcua'}, 'allowed_stream_targets': ['TEST-PC']})
+    key = http(base + '/api/live-api/status')[1]['settings']['api_key']
+    api = f'http://127.0.0.1:{port}'
+    auth = {'X-Api-Key': key}
+
+    def body(request_id, signals, period):
+        return {'requestId': request_id, 'sourceId': 'PLC01', 'signals': signals, 'samplingPeriodMs': period, 'ttlSeconds': 1800,
+                'streamTarget': {'protocol': 'websocket', 'url': f'ws://127.0.0.1:{port}/api/v1/test-receiver/{request_id}'}}
+    # Richieste come quelle di un sistema esterno: una senza chiave, una con un indirizzo non valido, due sessioni.
+    http(api + '/api/v1/live-sessions', body('senza-chiave', [{'signalId': 'x', 'address': nodes['Temperatura'], 'dataType': 'REAL'}], 250))
+    http(api + '/api/v1/live-sessions', body('indirizzo-errato', [{'signalId': 'x', 'address': 'ads:MAIN.x', 'dataType': 'REAL'}], 250), auth)
+    http(api + '/api/v1/live-sessions', body('linea-2-forno', [{'signalId': 'temperatura-forno', 'address': nodes['Temperatura'], 'dataType': 'REAL', 'unit': '°C'},
+                                                                {'signalId': 'pressione-forno', 'address': nodes['Pressione'], 'dataType': 'REAL', 'unit': 'bar'}], 250), auth)
+    http(api + '/api/v1/live-sessions', body('qualita-laminatoio', [{'signalId': 'velocita-gabbia', 'address': nodes['Velocità'], 'dataType': 'REAL', 'unit': 'm/s'}], 100), auth)
+    sh.wait(2500)
+    sh.page.goto(base + '/')
+    sh.page.wait_for_function('()=>document.querySelectorAll("#api-session-rows tr").length===2')
+    sh.wait(1500)
+    if wanted('live_api_monitor'):
+        sh.page.set_viewport_size({'width': 1920, 'height': 1500})
+        sh.page.locator('#api-session-rows tr', has_text='linea-2-forno').locator('button', has_text='Dettagli').click()
+        sh.wait(1500)
+        sh.shot('live_api_monitor', [(1, '#api-listener-status'), (2, '.api-metrics'), (3, '#api-session-rows'), (4, '#api-session-rows tr:first-child button:last-child'),
+                                     (5, '#api-session-details'), (6, '#api-request-rows')], clip=(0, 0, 1920, 960))
+        sh.page.set_viewport_size({'width': 1920, 'height': 1080})
+    if wanted('live_api_test'):
+        sh.js('(n)=>{const set=(id,v)=>{const e=document.getElementById(id);e.value=v;e.dispatchEvent(new Event("change",{bubbles:true}));};'
+              'set("test-source","PLC01");set("test-address",n);set("test-type","REAL");set("test-unit","°C");set("test-period","200");set("test-ttl","300");}', nodes['Temperatura'])
+        sh.click('#test-start')
+        sh.page.wait_for_function('()=>(window.liveApiTest.state.testData?.samples||0)>40', timeout=60000)
+        sh.wait(800)
+        card = 'section:has(#test-start)'
+        sh.page.locator(card).scroll_into_view_if_needed()
+        sh.shot('live_api_test', [(1, '#test-source'), (2, '#test-address'), (3, '#test-type'), (4, '#test-period'), (5, '#test-ttl'), (6, '#test-start'), (7, '#test-state'),
+                                  (8, '#test-chart'), (9, '#test-log')], selector=card, pad=4)
+        sh.click('#test-stop')
+        sh.wait(800)
+    if wanted('live_api_settings'):
+        sh.js('()=>{document.querySelector("section:has(#api-urls) details").open=true;}')
+        card = 'section:has(#api-urls)'
+        sh.page.locator(card).scroll_into_view_if_needed()
+        sh.js('()=>{document.getElementById("msg").hidden=true;}')
+        sh.wait(500)
+        sh.shot('live_api_settings', [(1, '#api-urls'), (2, '#api-key'), (3, '#api-key-new'), (4, '#api-configured'), (5, '#set-port'), (6, '#set-bind'),
+                                      (7, '#set-targets'), (8, '#set-aliases'), (9, '#set-require-key'), (10, '#api-save')], selector=card, pad=4)
+    for session in http(api + '/api/v1/live-sessions', headers=auth)[1]['sessions']:
+        http(api + '/api/v1/live-sessions/' + session['sessionId'], headers=auth, method='DELETE')

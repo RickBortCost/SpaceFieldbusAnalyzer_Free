@@ -59,6 +59,46 @@ public sealed class SourceController
         return null;
     }
 
+    /// <summary>
+    /// Starts the session of one protocol beside the running ones (Live Acquisition API: sources are opened only when a request needs
+    /// them). The first connection error is returned and the session removed; an existing session is left as it is.
+    /// </summary>
+    public async Task<string?> Add(JsonElement cfg, string protocol, TimeSpan timeout)
+    {
+        SourceSession session;
+        lock (sync)
+        {
+            if (sessions.ContainsKey(protocol)) return null;
+            WaitFirst = true;
+            session = new SourceSession(this, protocol, cfg, c => DriverFactory.Create(protocol, c));
+            sessions = new Dictionary<string, SourceSession>(sessions) { [protocol] = session };
+        }
+        var first = session.Start();
+        var done = await Task.WhenAny(first, Task.Delay(timeout));
+        var failure = done == first ? first.Result : new TimeoutException("Sorgente " + protocol + " non connessa entro " + timeout.TotalSeconds.ToString("0", System.Globalization.CultureInfo.InvariantCulture) + " s");
+        if (failure == null && !session.EverOpened) failure = new InvalidOperationException("Sorgente " + protocol + " non connessa");
+        if (failure != null)
+        {
+            await Remove(protocol);
+            return failure.Message.Length > 0 ? failure.Message : failure.GetType().Name;
+        }
+        StateChanged();
+        return null;
+    }
+
+    /// <summary>Stops and removes the session of one protocol; the others keep running.</summary>
+    public async Task Remove(string protocol)
+    {
+        SourceSession? session;
+        lock (sync)
+        {
+            if (!sessions.TryGetValue(protocol, out session)) return;
+            sessions = sessions.Where(k => k.Key != protocol).ToDictionary(k => k.Key, k => k.Value);
+        }
+        await session.Stop();
+        StateChanged();
+    }
+
     public async Task Stop()
     {
         List<SourceSession> current;

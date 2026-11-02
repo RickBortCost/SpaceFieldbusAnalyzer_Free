@@ -217,10 +217,15 @@ public static class Program
         Progress(95, "Servizio HTTP pronto");
         AppWindow.Open(url, Path.Combine(paths.DataDir, "webapp"), () => app.StopAsync().Wait(TimeSpan.FromSeconds(30)));
         Progress(100, "Pronto");
+        // --mode / SPACE_MODE: start directly in a mode (an Edge PC that runs only the API needs no operator).
+        if (LiveApi.AppMode.Requested(args) is { } preset)
+            try { LiveApi.AppMode.Choose(preset, runtime).GetAwaiter().GetResult(); }
+            catch (UserError exc) { Log.Warning("Modalità iniziale ignorata: " + exc.Message); }
         var timer = OperatingSystem.IsWindows() && timeBeginPeriod(1) == 0;
         try { app.WaitForShutdownAsync().GetAwaiter().GetResult(); }
         finally
         {
+            try { LiveApi.AppMode.Shutdown().Wait(TimeSpan.FromSeconds(10)); } catch (Exception exc) { Log.Warning("Chiusura Live Acquisition API: " + exc.Message); }
             ssh.Close();
             runtime.Dispose();
             app.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(10));

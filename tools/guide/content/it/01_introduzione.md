@@ -12,6 +12,8 @@ Dalla versione 3.0 il prodotto non contiene più Python. L'EXE Windows è compos
 | **Strumenti ▾** | Menu con **Conversione** (da un formato di file all'altro), **Dati calcolati** (formule condivise tra Live e registrazioni) e **Debug SSH** (console verso un target remoto, indipendente dall'acquisizione). |
 | **Connessione** | Fonte dati live, parametri di connessione, intervallo di lettura e buffer. |
 
+Dalla versione 4.0 all'avvio si sceglie la **modalità**: **Space Fieldbus Analyzer** (l'interfaccia completa descritta in questa guida) oppure **Live Acquisition API**, un servizio senza interfaccia di SFA con cui un sistema esterno chiede via REST acquisizioni temporanee e riceve i campioni via WebSocket (capitolo 16).
+
 ## Novità dalla 3.0.8 alla {{version}}
 
 | Versione | Cosa cambia |
@@ -33,10 +35,12 @@ Dalla versione 3.0 il prodotto non contiene più Python. L'EXE Windows è compos
 | **3.15.0** | **Esportazione degli archivi primari (.sac)** in CSV, Parquet, FDA o RBF dalla pagina Conversione e con `--tool export-sac`. |
 | **3.16.0** | Conversione e apertura dei progetti **TwinCAT Scope (.svdx)** con i dati inclusi: scelta dei canali e del periodo per ridurre il file; scrittura in CSV, Parquet, FDA o RBF. |
 | **3.17.0** | Esportazione degli archivi primari (.sac) **divisa in file da 15 minuti** (5, 30, 60 minuti o un solo file a scelta); barra di avanzamento percentuale in tutta la conversione (3.16.1). |
+| **3.17.x** | Memoria del PC sotto controllo durante le acquisizioni lunghe (3.17.1); protezione dello spazio su disco ed eliminazione degli archivi primari dalla pagina Conversione (3.17.2). |
+| **4.0.0** | **Scelta della modalità all'avvio** e nuova modalità **Live Acquisition API**: acquisizioni temporanee comandate da un sistema esterno via REST, campioni inviati via WebSocket, pagina di monitoraggio delle richieste e prova sul PC (capitolo 16). |
 
 ## Avvio su Windows
 
-Scaricare dall'ultima release il file `Space_Fieldbus_Analyzer_V<versione>_WINDOWS.zip`, estrarlo in una cartella scrivibile e avviare `Space_Fieldbus_Analyzer_V<versione>.exe`. Compare lo splash con la barra di avvio, poi si apre l'interfaccia nel browser (porta 5000 o la prima libera successiva). L'avvio è a schermo intero (F11 per uscire) e la pagina non scorre: barra superiore e barra di stato restano fisse e i pannelli scorrono al loro interno. Il pulsante **Spegni** (simbolo di accensione, in alto a destra) chiude l'applicazione. Chiudere solo la scheda del browser lascia attivo il servizio.
+Scaricare dall'ultima release il file `Space_Fieldbus_Analyzer_V<versione>_WINDOWS.zip`, estrarlo in una cartella scrivibile e avviare `Space_Fieldbus_Analyzer_V<versione>.exe`. Compare lo splash con la barra di avvio, poi si apre la pagina di **scelta della modalità** (capitolo 16): con **Space Fieldbus Analyzer** si apre l'interfaccia nel browser (porta 5000 o la prima libera successiva). L'avvio è a schermo intero (F11 per uscire) e la pagina non scorre: barra superiore e barra di stato restano fisse e i pannelli scorrono al loro interno. Il pulsante **Spegni** (simbolo di accensione, in alto a destra) chiude l'applicazione. Chiudere solo la scheda del browser lascia attivo il servizio.
 
 ## Flusso di lavoro tipico
 

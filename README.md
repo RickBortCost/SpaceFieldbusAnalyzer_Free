@@ -4,13 +4,13 @@
 
 **Download:** [ultima release](https://github.com/RickBortCost/SpaceAnalyzer_Free/releases/latest).
 
-## Novità della versione 3.17.2
+## Novità della versione 4.0.0
 
-- **Spazio su disco protetto**: il servizio controlla lo spazio libero ogni 10 s; sotto 1 GB chiude la registrazione in modo ordinato (file completi) invece di riempire il disco e bloccare il PC, e rifiuta nuove registrazioni, importazioni e conversioni senza spazio. Motivo: prima nessuna parte dell'applicazione controllava lo spazio libero.
-- **Storico Live** non porta più il disco sotto 5 GB liberi (prima occupava fino a 8 GB comunque). Motivo: lasciare lo spazio alle registrazioni.
-- **Archivi primari eliminabili** dalla pagina Conversione; copie dei file aperti dal PC rimosse dopo 30 giorni; registro eventi, file di crash e cache del browser limitati. Motivo: crescite senza limite della cartella dati e delle registrazioni.
-- **Memoria**: meno copie a ogni aggiornamento del Live e cache dei DAT PDA3 limitata e svuotata con memoria bassa. Motivo: completare le correzioni della 3.17.1.
-- Dalla 3.17.1: memoria del PC sotto controllo e grafico Live secondo la RAM; dalla 3.17.0: archivi primari esportati in file da 15 minuti.
+- **Scelta della modalità all'avvio**: **Space Fieldbus Analyzer** (interfaccia completa) oppure **Live Acquisition API**; `--mode sfa|api` la sceglie senza operatore. Motivo: usare SFA come servizio comandato da altri sistemi senza caricare il PC con l'interfaccia.
+- **Live Acquisition API**: un sistema esterno chiede via REST (`/api/v1/live-sessions`, porta 5180, chiave API) l'acquisizione temporanea di segnali delle sorgenti salvate in SFA; i campioni arrivano su un WebSocket aperto da SFA verso l'indirizzo indicato (`stream_started`, `samples` con sequenza, timestamp UTC e qualità, `signal_status`, `stream_stopped`), con TTL, riconnessione e host autorizzati. Stessi driver e stesso motore di acquisizione dell'interfaccia; nulla viene salvato. Motivo: specifica «Live Acquisition API – MVP 0».
+- **Pagina di monitoraggio** delle richieste ricevute, delle sessioni e degli errori, con **prova sul PC** tramite un ricevitore WebSocket interno. Motivo: verificare il funzionamento dall'Edge PC.
+- Guida illustrata con il nuovo capitolo 16 (PDF 4.0).
+- Dalla 3.17.x: memoria del PC e spazio su disco sotto controllo, archivi primari eliminabili.
 
 **Regola di pubblicazione:** ogni versione ha la sua sezione `## X.Y.Z` in `CHANGELOG.md` con tutte le modifiche e il motivo di ciascuna, e questa sezione "Novità" viene aggiornata a ogni rilascio con le ultime modifiche e il perché; il test `test_release_notes.py` blocca la pipeline se la sezione della versione corrente manca.
 
