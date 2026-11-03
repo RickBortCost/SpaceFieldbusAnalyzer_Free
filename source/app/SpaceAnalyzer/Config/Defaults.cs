@@ -6,7 +6,7 @@ namespace SpaceAnalyzer.App.Config;
 public static class Defaults
 {
     public const string AppName = "Space Fieldbus Analyzer";
-    public const string Version = "4.0.1";
+    public const string Version = "4.1.0";
     public const int MaxSelected = 64;
     public const int MaxSamples = 360000;
     public const int MaxTotalSamples = 2000000;
@@ -53,7 +53,7 @@ public static class Defaults
             ["ads_bind_ip"] = "", ["ads_timeout_ms"] = 3000, ["ads_notify_batch_ms"] = 0, ["ads_mode"] = "sum", ["ads_encoding"] = "cp1252", ["ads_root"] = "ads:/",
             ["endpoint"] = "opc.tcp://127.0.0.1:4840", ["security"] = "Basic256Sha256", ["security_mode"] = "SignAndEncrypt",
             ["username"] = "", ["password"] = "", ["client_cert"] = "certificates/client.der", ["client_key"] = "certificates/client-key.pem",
-            ["server_cert"] = "certificates/server.der", ["application_uri"] = "", ["auto_reconnect"] = true, ["sample_ms"] = 500,
+            ["server_cert"] = "certificates/server.der", ["application_uri"] = "", ["auto_reconnect"] = true, ["live_charts"] = true, ["sample_ms"] = 500,
             ["root_nodeid"] = "i=85", ["window_seconds"] = 60, ["max_samples"] = 360000, ["buffer_mode"] = "time", ["scan_limit"] = 50000,
         }) o[k] = v?.DeepClone();
         return o;

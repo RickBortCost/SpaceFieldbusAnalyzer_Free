@@ -29,7 +29,7 @@ var payload []byte
 //go:embed payload.sha256
 var payloadDigest string
 
-const version = "4.0.1"
+const version = "4.1.0"
 
 func message(text string) {
 	title, _ := syscall.UTF16PtrFromString("Space Fieldbus Analyzer V" + version)

@@ -15,10 +15,13 @@ The **Connessione** (Connection) button opens the «Data source and connection»
 | 8 | **Read interval**: from 1 ms (ADS) to 2 s. It is a target: the actual period depends on server, network and PC and is shown in the Live diagnostics. |
 | 9 | **Recent buffer / FFT**: 10 s, 30 s, 1 min, 2 min. |
 | 10 | **Reconnect automatically** if the connection drops. |
-| 11 | **Connect and read** and (12) **Disconnect**. |
-| 13 | **Save settings and layout**. |
+| 11 | **Disattiva grafici (solo registrazione)** (Turn charts off, recording only) / **Attiva grafici** (Turn charts on): see below. |
+| 12 | **Connect and read** and (13) **Disconnect**. |
+| 14 | **Save settings and layout**. |
 
 Live buffer limit: «Time + sample limit» or «Sample count only» (maximum 360,000 per signal; 2 million samples in memory overall). Record also saves the samples that have left the buffer.
+
+**Charts off.** The **Disattiva grafici (solo registrazione)** button switches the Live charts off, even while connected or recording. Connection and Record continue normally and the signal list keeps showing the current value, but neither the service nor the page keeps samples for the charts (the temporary Live history is not fed either) and the memory already used by the charts is freed. It is the recommended choice for long unattended recordings, on PCs with little RAM or with many fast signals: the memory stays available to the recording and to the system. The choice is saved with the connection and also applies after a restart; **Attiva grafici** turns them back on and the charts start again from the new samples.
 
 ## ADS · Beckhoff TwinCAT
 

@@ -315,6 +315,7 @@ public static class Validation
             cfg[key] = IntegerOrThrow(cfg[key], $"{key}: inserire un intero tra {low} e {high}", low, high);
         if (cfg["buffer_mode"].Str() is not ("time" or "samples")) throw new UserError("Modalità buffer non valida");
         if (!cfg["auto_reconnect"].IsBool()) throw new UserError("auto_reconnect deve essere un valore booleano");
+        if (!cfg["live_charts"].IsBool()) throw new UserError("live_charts deve essere un valore booleano");
         cfg["root_nodeid"] = NodeIdText(cfg["root_nodeid"].Truthy() ? cfg["root_nodeid"] : "i=85");
         return cfg;
     }

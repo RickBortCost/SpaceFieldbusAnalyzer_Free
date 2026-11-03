@@ -4,17 +4,11 @@
 
 **Download:** [ultima release](https://github.com/RickBortCost/SpaceAnalyzer_Free/releases/latest).
 
-## Novità della versione 4.0.1
+## Novità della versione 4.1.0
 
-- Live Acquisition API: **`stream_stopped` sempre inviato** quando una sessione viene chiusa (DELETE, TTL, chiusura dell'applicazione) mentre sono in invio dei campioni; prima il WebSocket poteva chiudersi senza. Motivo: richiesto dalla specifica (§22); il caso ha fermato la pubblicazione della 4.0.0.
-
-Dalla 4.0.0:
-
-- **Scelta della modalità all'avvio**: **Space Fieldbus Analyzer** (interfaccia completa) oppure **Live Acquisition API**; `--mode sfa|api` la sceglie senza operatore. Motivo: usare SFA come servizio comandato da altri sistemi senza caricare il PC con l'interfaccia.
-- **Live Acquisition API**: un sistema esterno chiede via REST (`/api/v1/live-sessions`, porta 5180, chiave API) l'acquisizione temporanea di segnali delle sorgenti salvate in SFA; i campioni arrivano su un WebSocket aperto da SFA verso l'indirizzo indicato (`stream_started`, `samples` con sequenza, timestamp UTC e qualità, `signal_status`, `stream_stopped`), con TTL, riconnessione e host autorizzati. Stessi driver e stesso motore di acquisizione dell'interfaccia; nulla viene salvato. Motivo: specifica «Live Acquisition API – MVP 0».
-- **Pagina di monitoraggio** delle richieste ricevute, delle sessioni e degli errori, con **prova sul PC** tramite un ricevitore WebSocket interno. Motivo: verificare il funzionamento dall'Edge PC.
-- Guida illustrata con il nuovo capitolo 16 (PDF 4.0).
-- Dalla 3.17.x: memoria del PC e spazio su disco sotto controllo, archivi primari eliminabili.
+- **Disattiva grafici (solo registrazione)**: pulsante nel popup Connessione che spegne i grafici Live, anche da connessi o durante una registrazione. Connessione e Record proseguono, l'elenco dei segnali mostra il valore corrente, servizio e pagina non conservano campioni per i grafici e la memoria già occupata viene liberata; la scelta è salvata con la connessione. Motivo: registrare a lungo senza visualizzazione risparmiando RAM, per garantire la registrazione continua.
+- Guida illustrata aggiornata (PDF 4.1).
+- Dalla 4.0.x: scelta della modalità all'avvio e modalità Live Acquisition API.
 
 **Regola di pubblicazione:** ogni versione ha la sua sezione `## X.Y.Z` in `CHANGELOG.md` con tutte le modifiche e il motivo di ciascuna, e questa sezione "Novità" viene aggiornata a ogni rilascio con le ultime modifiche e il perché; il test `test_release_notes.py` blocca la pipeline se la sezione della versione corrente manca.
 

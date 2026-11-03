@@ -15,10 +15,13 @@ Il pulsante **Connessione** apre il popup «Fonte dati e connessione». La fonte
 | 8 | **Intervallo lettura**: da 1 ms (ADS) a 2 s. È un obiettivo: il periodo effettivo dipende da server, rete e PC ed è mostrato nella diagnostica del Live. |
 | 9 | **Buffer recente / FFT**: 10 s, 30 s, 1 min, 2 min. |
 | 10 | **Riconnetti automaticamente** se la connessione cade. |
-| 11 | **Connetti e leggi** e (12) **Disconnetti**. |
-| 13 | **Salva impostazione e layout**. |
+| 11 | **Disattiva grafici (solo registrazione)** / **Attiva grafici**: vedi sotto. |
+| 12 | **Connetti e leggi** e (13) **Disconnetti**. |
+| 14 | **Salva impostazione e layout**. |
 
 Limite buffer live: «Tempo + limite campioni» oppure «Solo numero campioni» (massimo 360.000 per segnale; 2 milioni di campioni complessivi in memoria). Record salva anche i campioni usciti dal buffer.
+
+**Grafici disattivati.** Il pulsante **Disattiva grafici (solo registrazione)** spegne i grafici Live, anche durante la connessione o una registrazione. Connessione e Record proseguono normalmente e l'elenco dei segnali continua a mostrare il valore corrente, ma né il servizio né la pagina conservano campioni per i grafici (anche lo storico Live temporaneo non viene alimentato) e la memoria già occupata dai grafici viene liberata. È la scelta consigliata per le registrazioni lunghe senza operatore, su PC con poca RAM o con molti segnali veloci: la memoria resta disponibile alla registrazione e al sistema. La scelta è salvata con la connessione e vale anche dopo un riavvio; **Attiva grafici** li riaccende e i grafici ripartono dai nuovi campioni.
 
 ## ADS · Beckhoff TwinCAT
 
