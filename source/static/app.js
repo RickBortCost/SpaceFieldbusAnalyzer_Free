@@ -134,7 +134,7 @@ async function loadConfig(){
   liveCharts.restore(savedServerData.chart_layout,(window.liveDataNodes?.(selected)||selected));renderSelected();
   discovered=savedServerData.discovered_endpoints||[];renderEndpoints();
   if(c.saved_at)I18N.bind($('savestatus'),"textContent",()=>(I18N.join([{text:"Ultimo salvataggio: "},{value:(new Date(c.saved_at).toLocaleString(I18N.locale()))}])),true);
-  I18N.bind($('data-dir'),"textContent",()=>(I18N.join([{text:"Cartella impostazioni: "},{value:(c.data_dir)}])),true);await syncSelection();
+  I18N.bind($('data-dir'),"textContent",()=>(I18N.join([{text:"Cartella impostazioni: "},{value:(c.data_dir)}])+(c.log_dir?' · '+I18N.join([{text:"Cartella log: "},{value:(c.log_dir)}]):'')),true);await syncSelection();
 }
 function setState(next,error=''){state=next;connected=next==='connected';const labels={connected:I18N.t("Connesso"),disconnected:I18N.t("Non connesso"),connecting:I18N.t("Connessione…"),reconnecting:I18N.t("Riconnessione…")};I18N.bind($('status'),"textContent",()=>(labels[next]||next),true);$('status').className='status'+(connected?' ok':error?' bad':'');I18N.bind($('status'),"title",()=>(error||''),false);
   $('connect').disabled=connectionBusy||next==='connecting';$('disconnect').disabled=next==='disconnected'||connectionBusy;

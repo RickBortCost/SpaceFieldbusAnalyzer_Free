@@ -793,6 +793,8 @@ public sealed class AppRuntime : IDisposable
                 var endpoint = "mixed://" + string.Join("/", sessions.Keys);
                 stopping = false;
                 state = await Task.Run(() => Recording.Start(format!.ToLowerInvariant(), specs, endpoint, period, optionsDoc.RootElement, connections));
+                Log.Info($"Registrazione avviata: {state.GetValueOrDefault("recording_id")}, formato {format}, {nodes.Count} segnali, periodo {period} ms, "
+                    + $"sorgenti {string.Join(", ", sessions.Keys)}, cartella {Recording.Directory}, grafici {(LiveCharts ? "attivi" : "disattivati")}");
             }
             finally
             {
@@ -804,6 +806,66 @@ public sealed class AppRuntime : IDisposable
             return state;
         }
         finally { CommandLock.Release(); }
+    }
+
+    // ---- Status log ---------------------------------------------------------------------------
+
+    string? lastRecordingKey;
+
+    /// <summary>Scalars of a status object, with lists reduced to their length and nested objects one level deep.</summary>
+    static Dictionary<string, object?> Flat(object? value, int depth = 1)
+    {
+        var result = new Dictionary<string, object?>();
+        if (value is not Dictionary<string, object?> d) return result;
+        foreach (var (k, v) in d)
+        {
+            if (v is Delegate) continue;   // JSON writer callbacks of the engine status
+            result[k] = v switch
+            {
+                null or string or bool or long or int or double or float => v,
+                System.Collections.ICollection c when v is not Dictionary<string, object?> => (long)c.Count,
+                Dictionary<string, object?> inner when depth > 0 => Flat(inner, depth - 1),
+                Dictionary<string, object?> inner => (long)inner.Count,
+                _ => v.ToString(),
+            };
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// One line of SFA_stato_*.log: connection, sources, acquisition queues, recording, memory, disk and process. A change of the
+    /// recording (start, stop, error, closing) is also written in the operation log, so the reason of a stop is never only in the status.
+    /// </summary>
+    public Dictionary<string, object?> StatusSnapshot()
+    {
+        var recording = Flat(Recording.Status());
+        recording.Remove("finalizations"); recording.Remove("jobs");
+        var key = string.Join("|", new[] { "recording_id", "state", "busy", "error" }.Select(k => recording.GetValueOrDefault(k)?.ToString() ?? ""));
+        if (key != lastRecordingKey)
+        {
+            var previous = lastRecordingKey;
+            lastRecordingKey = key;
+            if (previous != null)
+            {
+                var message = "Registrazione " + (recording.GetValueOrDefault("recording_id") ?? "-") + ": stato " + recording.GetValueOrDefault("state")
+                    + (recording.GetValueOrDefault("busy") is true ? " (salvataggio in corso)" : "") + ", righe " + recording.GetValueOrDefault("rows_written")
+                    + ", cicli " + recording.GetValueOrDefault("cycles_received") + (recording.GetValueOrDefault("error") is string { Length: > 0 } e ? ", errore: " + e : "")
+                    + (recording.GetValueOrDefault("stop_reason") is string { Length: > 0 } r ? ", motivo: " + r : "");
+                if (recording.GetValueOrDefault("state") is "error" || recording.GetValueOrDefault("error") is string { Length: > 0 }) Log.Warning(message); else Log.Info(message);
+            }
+        }
+        var acquisition = Acquisition.Status()["connections"] is Dictionary<string, object?> connections
+            ? connections.ToDictionary(k => k.Key, k => (object?)Flat(k.Value, 0)) : new();
+        return new Dictionary<string, object?>
+        {
+            ["mode"] = LiveApi.AppMode.Current, ["want_connected"] = WantConnected, ["state"] = lastError.Length > 0 ? "errore: " + lastError : Sources.Enabled ? "sorgenti attive" : "non connesso",
+            ["live_charts"] = LiveCharts, ["selected"] = (long)Selected.Count,
+            ["sources"] = Sources.Status().ToDictionary(k => k.Key, k => (object?)Flat(k.Value, 0)),
+            ["acquisition"] = acquisition, ["recording"] = recording,
+            ["live_archive_error"] = Archive.Error, ["events_overflow"] = Events.Overflow, ["events_error"] = Events.Error,
+            ["memory"] = MemoryGuard.Report(), ["disk"] = DiskGuard.Report(), ["process"] = StatusLog.Process(),
+            ["live_api_sessions"] = LiveApi.AppMode.Api?.Service.Active().Count,
+        };
     }
 
     int diskStopping;
@@ -857,7 +919,10 @@ public sealed class AppRuntime : IDisposable
             ["reason"] = reason, ["received_end_ns"] = Clock.UtcNs().ToString(System.Globalization.CultureInfo.InvariantCulture),
             ["acquisition"] = Acquisition.Status(), ["calculations"] = Calculations.Status(),
         });
-        return Recording.Stop(reason, reason == "user" ? .15 : 0);
+        var status = Recording.Stop(reason, reason == "user" ? .15 : 0);
+        Log.Info($"Registrazione fermata (motivo: {reason}): {status.GetValueOrDefault("recording_id")}, righe {status.GetValueOrDefault("rows_written")}, "
+            + $"cicli {status.GetValueOrDefault("cycles_received")}" + (status.GetValueOrDefault("error") is string { Length: > 0 } e ? ", errore: " + e : ""));
+        return status;
     }
 
     public async Task<Dictionary<string, object?>> StopRecording(string? ident)

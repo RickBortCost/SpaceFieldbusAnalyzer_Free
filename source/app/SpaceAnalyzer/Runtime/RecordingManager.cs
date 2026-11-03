@@ -113,6 +113,7 @@ public sealed class RecordingManager(string directory, string version, Action<st
     {
         RecordingSession? rec;
         lock (sync) rec = active;
+        if (rec != null) Log.Warning($"Registrazione interrotta per errore ({reason}): {message}");
         rec?.Fail(message, reason);
     }
 

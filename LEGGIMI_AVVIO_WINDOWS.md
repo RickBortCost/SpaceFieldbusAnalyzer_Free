@@ -36,7 +36,7 @@ Le registrazioni vengono salvate nella cartella `Recordings` accanto all’EXE, 
 
 Per chiudere il software chiudi la finestra dell’applicazione oppure usa **Chiudi applicazione**: in entrambi i casi le registrazioni in corso vengono finalizzate e i servizi si arrestano. Se la finestra è stata aperta nel browser predefinito (Edge e Chrome assenti, oppure `SPACE_WINDOW=browser`), chiudere la scheda lascia attivi i servizi: usa **Chiudi applicazione**. Prima di avviare la nuova versione chiudi l’eventuale versione precedente; se è ancora attiva, il programma lo segnala.
 
-Se non si avvia, consulta `launcher-v<versione>.log`, `opcua-client.log` ed eventuali `crash-<data>.txt` nella cartella dati.
+Se non si avvia, consulta `launcher-v<versione>.log`, `opcua-client.log` ed eventuali `crash-<data>.txt` nella cartella dati. Per il debug del funzionamento (ad esempio una registrazione fermata) usa la cartella `Log` accanto all’EXE: `SFA_funzionamento_<data>.log`, `SFA_errori_<data>.log` e `SFA_stato_<data>.log` (stato ogni 60 s), conservati 30 giorni.
 
 ## Verifiche e componenti esterni
 
