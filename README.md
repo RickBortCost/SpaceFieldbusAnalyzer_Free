@@ -4,7 +4,11 @@
 
 **Download:** [ultima release](https://github.com/RickBortCost/SpaceAnalyzer_Free/releases/latest).
 
-## Novità della versione 4.1.1
+## Novità della versione 4.1.2
+
+- Pagina Live: nessun errore se la risposta di un aggiornamento arriva dopo la chiusura della pagina. Motivo: errore emerso nei test dell'interfaccia.
+
+Dalla 4.1.1:
 
 - **Log per il debug nella cartella `Log` accanto all'eseguibile**: file giornalieri `SFA_funzionamento`, `SFA_errori` e `SFA_stato` (stato completo ogni 60 s), conservati 30 giorni; avvio e arresto di ogni registrazione con il motivo, chiusure dell'applicazione e possibili sospensioni del PC. Motivo: ricostruire perché una registrazione si è fermata dopo 9 ore.
 - Dalla 4.1.0: pulsante **Disattiva grafici (solo registrazione)** nel popup Connessione, per registrare senza grafici risparmiando RAM.
