@@ -2,6 +2,10 @@
 
 Il numero di versione e la data di ogni release sono assegnati dalla pipeline (vedi `VERSIONI.md`); per le versioni 1.x vedi `source/CHANGELOG.txt`.
 
+## 4.1.2
+
+- **Aggiornamento della pagina Live dopo la chiusura della pagina**: se la risposta di un aggiornamento periodico arrivava quando la pagina era già stata chiusa o sostituita, il codice provava ad aggiornare elementi non più esistenti e generava un errore; ora l'aggiornamento termina senza effetti. Motivo: errore emerso nella suite dei test dell'interfaccia (`test_i18n_ui.cjs`) alla chiusura di una pagina con un aggiornamento in corso; la correzione era stata preparata per la 4.1.1 ma è arrivata dopo l'unione della sua PR.
+
 ## 4.1.1
 
 - **Log di stato, funzionamento ed errori nella cartella `Log` accanto all'eseguibile**: un file per giorno e per tipo, conservati 30 giorni (al massimo 1 GB): `SFA_funzionamento_*.log` (avvio con PC, versione e cartelle; modalità; connessioni e riconnessioni; avvio e arresto di ogni registrazione con formato, segnali, righe e motivo; interruzioni per errore; grafici attivati o disattivati; chiusura e chi l'ha richiesta: pulsante, finestra chiusa, uscita del processo; eventi del registro di acquisizione, al massimo 20 per tipo e minuto), `SFA_errori_*.log` (solo avvisi ed errori) e `SFA_stato_*.log` (ogni 60 s, `SPACE_STATUS_LOG_SECONDS`, una riga JSON con sorgenti, code di acquisizione, registrazione, archivio primario, memoria, disco e processo; un intervallo saltato di oltre tre periodi viene segnalato come possibile sospensione del PC o blocco del servizio). La cartella è indicata in fondo al popup Connessione; se non è scrivibile si usa `Log` nella cartella dati. Motivo: una registrazione si è fermata dopo 9 ore senza che fosse possibile ricostruire il perché: avvio e arresto delle registrazioni non comparivano nel log testuale (solo nel registro eventi SQLite) e `opcua-client.log` (5 × 5 MB) poteva aver già perso le ore precedenti all'arresto.

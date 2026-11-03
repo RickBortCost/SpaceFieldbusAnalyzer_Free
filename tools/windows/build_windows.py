@@ -18,7 +18,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / 'source'
 APP = SOURCE / 'app' / 'SpaceAnalyzer'
-VERSION = '4.1.1'
+VERSION = '4.1.2'
 
 
 def validate_versions():
