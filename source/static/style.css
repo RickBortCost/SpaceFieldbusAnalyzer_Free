@@ -75,3 +75,5 @@ main.live-page,main.recordings-page{box-sizing:border-box;width:100%;max-width:n
 #history-compare-status{white-space:normal;height:auto;overflow:visible;line-height:1.45}
 
 .branch-select{min-height:22px;padding:1px 7px;font-size:11px;margin-left:6px}
+
+.live-charts-control{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0}.live-charts-control .small{flex:1 1 260px}

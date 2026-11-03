@@ -123,8 +123,8 @@ def fig_connection_opcua(sh, stack):
     sh.click('#nav-connection')
     sh.wait(500)
     sh.shot('connection_opcua', [(1, '#data-source'), (2, '#endpoint'), (3, '#discover'), (4, '#security'), (5, '#security_mode'), (6, '#username'),
-                                 (7, '#mqtt-parallel-option'), (8, '#sample_ms'), (9, '#window_seconds'), (10, '#auto_reconnect'), (11, '#connect'), (12, '#disconnect'),
-                                 (13, '#connection-save')], selector='#connection-dialog')
+                                 (7, '#mqtt-parallel-option'), (8, '#sample_ms'), (9, '#window_seconds'), (10, '#auto_reconnect'), (11, '#live-charts-toggle'), (12, '#connect'),
+                                 (13, '#disconnect'), (14, '#connection-save')], selector='#connection-dialog')
     close_dialog(sh)
 
 

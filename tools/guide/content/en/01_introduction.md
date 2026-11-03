@@ -39,6 +39,7 @@ Since version 4.0 the **mode** is chosen at start: **Space Fieldbus Analyzer** (
 | **3.17.0** | Primary capture (.sac) export **split into files of 15 minutes** (5, 30, 60 minutes or a single file can be chosen); overall percentage progress bar throughout the conversion (3.16.1). |
 | **3.17.x** | PC memory kept under control during long acquisitions (3.17.1); disk space protection and deletion of primary captures from the Conversion page (3.17.2). |
 | **4.0.0** | **Mode chosen at start** and new **Live Acquisition API** mode: temporary acquisitions controlled by an external system via REST, samples sent via WebSocket, request monitor page and test on the PC (chapter 16). |
+| **4.1.0** | **Disattiva grafici (solo registrazione)** (charts off) button in the Connection pop-up: connection and recording without charts, with the chart memory freed (chapter 3). |
 
 ## Starting on Windows
 

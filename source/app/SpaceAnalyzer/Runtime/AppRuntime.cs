@@ -182,6 +182,12 @@ public sealed class AppRuntime : IDisposable
 
     public void ResetCalculationsLocked() { lock (Lock) ResetCalculations(); }
 
+    /// <summary>
+    /// Live charts on (default) or off. Off: only the last value of each signal is kept for the signal list; no chart buffers and no
+    /// Live history are filled, so a long acquisition with Record uses only the memory the recording needs.
+    /// </summary>
+    public bool LiveCharts { get; private set; } = true;
+
     public void ApplyLiveConfig(JsonObject cfg)
     {
         lock (Lock)
@@ -190,9 +196,14 @@ public sealed class AppRuntime : IDisposable
             WindowSeconds = cfg["window_seconds"].Num() ?? 60;
             MaxSamples = (long)(cfg["max_samples"].Num() ?? Defaults.MaxSamples);
             BufferMode = cfg["buffer_mode"].Str() ?? "time";
-            samples = samples.ToDictionary(k => k.Key, k => NewBuffer(k.Key, k.Value.Points, k.Value.Overview));
+            var charts = cfg["live_charts"] is not JsonValue v || !v.TryGetValue<bool>(out var on) || on;
+            // Charts switched off: the buffers of the session are emptied (their memory returns to the PC) and stay empty.
+            samples = charts && LiveCharts ? samples.ToDictionary(k => k.Key, k => NewBuffer(k.Key, k.Value.Points, k.Value.Overview))
+                : samples.ToDictionary(k => k.Key, k => NewBuffer(k.Key));
+            if (charts != LiveCharts) Log.Info(charts ? "Grafici Live attivati" : "Grafici Live disattivati: connessione e registrazione proseguono senza buffer di visualizzazione");
+            LiveCharts = charts;
             if (ActiveConfig != null)
-                foreach (var key in new[] { "sample_ms", "window_seconds", "auto_reconnect", "max_samples", "buffer_mode" })
+                foreach (var key in new[] { "sample_ms", "window_seconds", "auto_reconnect", "max_samples", "buffer_mode", "live_charts" })
                     ActiveConfig[key] = cfg[key]?.DeepClone();
         }
     }
@@ -285,6 +296,7 @@ public sealed class AppRuntime : IDisposable
                 if (!samples.TryGetValue(row.NodeId, out var points)) continue;
                 if (points.Last is { } lastPoint && t < lastPoint.T) continue;
                 if (calculated) calculatedLatest[row.NodeId] = row; else latest[row.NodeId] = row;
+                if (!LiveCharts) continue;
                 var point = new LivePoint(t, row.PlotValue is double p && double.IsFinite(p) ? p : null, row.QualityOrDerived, row.StatusCode, row.SourceTs, row.ServerTs,
                     PyStr(row.Value), row.DataType, row.Status, period, row.LocalTs, row.SourceFiletime);
                 if (calculated && points.Last is { } previous && previous.T == t) points.ReplaceLast(point);
@@ -474,7 +486,7 @@ public sealed class AppRuntime : IDisposable
         if (!WantConnected || active == null) return;
         if (!AllowedSources(cfg).SetEquals(AllowedSources(active))) throw new UserError("Disconnettere prima di cambiare i protocolli attivi");
         var mutable = new HashSet<string> { "source", "ui_language", "window_seconds", "max_samples", "buffer_mode", "root_nodeid", "ads_root", "mqtt_root", "s7_root",
-            "s7_symbolic_root", "s7_udp_root", "scan_limit", "mqtt_password", "s7_symbolic_password", "auto_reconnect" };
+            "s7_symbolic_root", "s7_udp_root", "scan_limit", "mqtt_password", "s7_symbolic_password", "auto_reconnect", "live_charts" };
         foreach (var (key, _) in Defaults.Config())
             if (!mutable.Contains(key) && !JsonNode.DeepEquals(cfg[key], active[key])) throw new UserError("Disconnettere prima di modificare i parametri delle sorgenti");
     }
@@ -674,6 +686,7 @@ public sealed class AppRuntime : IDisposable
         diag["s7_udp"] = cfg["s7_mode"].Str() == "udp" ? Sub(Session("s7"), "diagnostics") : new();
         diag["ads_notifications"] = cfg["ads_mode"].Str() == "notify" ? Sub(Session("ads"), "diagnostics") : new();
         diag["memory"] = MemoryGuard.Report();
+        diag["live_charts"] = LiveCharts;
         diag["disk"] = DiskGuard.Report();
         diag["disk_stop"] = diskStopMessage;
         var source = (ActiveConfig ?? Config.Load())["source"].Str() ?? "opcua";
