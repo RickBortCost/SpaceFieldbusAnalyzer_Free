@@ -4,10 +4,10 @@
 
 **Download:** [ultima release](https://github.com/RickBortCost/SpaceAnalyzer_Free/releases/latest).
 
-## Novità della versione 4.1.0
+## Novità della versione 4.1.1
 
-- **Disattiva grafici (solo registrazione)**: pulsante nel popup Connessione che spegne i grafici Live, anche da connessi o durante una registrazione. Connessione e Record proseguono, l'elenco dei segnali mostra il valore corrente, servizio e pagina non conservano campioni per i grafici e la memoria già occupata viene liberata; la scelta è salvata con la connessione. Motivo: registrare a lungo senza visualizzazione risparmiando RAM, per garantire la registrazione continua.
-- Guida illustrata aggiornata (PDF 4.1).
+- **Log per il debug nella cartella `Log` accanto all'eseguibile**: file giornalieri `SFA_funzionamento`, `SFA_errori` e `SFA_stato` (stato completo ogni 60 s), conservati 30 giorni; avvio e arresto di ogni registrazione con il motivo, chiusure dell'applicazione e possibili sospensioni del PC. Motivo: ricostruire perché una registrazione si è fermata dopo 9 ore.
+- Dalla 4.1.0: pulsante **Disattiva grafici (solo registrazione)** nel popup Connessione, per registrare senza grafici risparmiando RAM.
 - Dalla 4.0.x: scelta della modalità all'avvio e modalità Live Acquisition API.
 
 **Regola di pubblicazione:** ogni versione ha la sua sezione `## X.Y.Z` in `CHANGELOG.md` con tutte le modifiche e il motivo di ciascuna, e questa sezione "Novità" viene aggiornata a ogni rilascio con le ultime modifiche e il perché; il test `test_release_notes.py` blocca la pipeline se la sezione della versione corrente manca.

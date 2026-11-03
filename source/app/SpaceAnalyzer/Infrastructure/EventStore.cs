@@ -40,6 +40,7 @@ public sealed class EventStore
         };
         try { Listener?.Invoke(evt); }
         catch (Exception exc) { ListenerError = exc.Message; }
+        StatusLog.Event(kind, connectionId, evt["details"]);
         lock (gate)
         {
             recent.AddLast(evt);

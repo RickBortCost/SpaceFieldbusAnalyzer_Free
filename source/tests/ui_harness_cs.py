@@ -160,7 +160,7 @@ class Service:
         (self.application / 'Recordings').mkdir(parents=True, exist_ok=True)
         port = free_port()
         env = dict(os.environ, OPCUA_DATA_DIR=str(self.data), OPCUA_APP_DIR=str(self.application), OPCUA_NO_BROWSER='1', OPCUA_WEB_PORT=str(port),
-                   SPACE_BASE_DIR=str(SOURCE), SPACE_TEST_HOOKS='1', **{'SPACE_MODE': 'sfa', **(extra or {})})
+                   SPACE_BASE_DIR=str(SOURCE), SPACE_TEST_HOOKS='1', **{'SPACE_MODE': 'sfa', 'SPACE_STATUS_LOG_SECONDS': '5', **(extra or {})})
         self.log = (work / 'service.log').open('w')
         self.process = subprocess.Popen(app_command(), env=env, stdout=self.log, stderr=subprocess.STDOUT)
         self.base = f'http://127.0.0.1:{port}'

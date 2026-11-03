@@ -72,6 +72,19 @@ const samplesIn=t=>Object.values(t.series).reduce((n,s)=>n+(s?.length||0),0);
     await wait(()=>samplesIn(t)>20,'charts receive samples again');
     assert.equal((await api('/api/config')).live_charts,true);
     checks.push('charts on again');
+
+    // ---- logs beside the executable: operation, errors and periodic status, with the recording start and stop ----
+    const cfg=await api('/api/config');assert(cfg.log_dir&&fs.existsSync(cfg.log_dir),'log folder '+cfg.log_dir);
+    assert.match($('data-dir').textContent,/Cartella log: /);
+    const day=f=>{const n=new Date(),d=n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');return path.join(cfg.log_dir,'SFA_'+f+'_'+d+'.log');};
+    await wait(()=>fs.existsSync(day('stato'))&&fs.readFileSync(day('stato'),'utf8').trim().split('\n').length>=2,'status lines written',30000);
+    const work=fs.readFileSync(day('funzionamento'),'utf8');
+    for(const text of ['Application start','Avvio: PC','Registrazione avviata','Registrazione fermata (motivo: user)','Grafici Live disattivati','Log di stato ogni'])assert(work.includes(text),'operation log: '+text);
+    const last=JSON.parse(fs.readFileSync(day('stato'),'utf8').trim().split('\n').at(-1).replace(/^\S+ \S+ /,''));
+    for(const k of ['sources','acquisition','recording','memory','disk','process'])assert(k in last,'status has '+k);
+    assert.equal(last.want_connected,true);assert(last.process.working_set_mb>0&&last.process.threads>0);assert.equal(last.recording.state,'stopped');
+    assert(fs.existsSync(day('errori'))||!/WARNING|ERROR/.test(work),'error log present when warnings were written');
+    checks.push('daily logs beside the executable: operation, errors, periodic status');
     assert.deepEqual(errors,[]);
     console.log(JSON.stringify({result:'PASS',checks}));
   }finally{t.stop();dom.window.close();}

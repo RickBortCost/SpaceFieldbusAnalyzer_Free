@@ -155,7 +155,13 @@ public static class Program
         }
         Directory.CreateDirectory(paths.DataDir);
         Log.Configure(paths.LogFile);
+        // Daily logs beside the executable; in the data folder when that folder cannot be written.
+        if (!Log.ConfigureFolder(paths.LogDir) && !Log.ConfigureFolder(Path.Combine(paths.DataDir, "Log")))
+            Console.Error.WriteLine("Cartella Log non scrivibile: " + paths.LogDir);
         Log.Info("Application start V" + Defaults.Version);
+        Log.Info($"Avvio: PC {Environment.MachineName}, Windows/OS {Environment.OSVersion}, .NET {Environment.Version}, {Environment.ProcessorCount} CPU, "
+            + $"processo {Environment.ProcessId}, eseguibile {paths.ApplicationDir}, dati {paths.DataDir}, registrazioni {paths.RecordingsDir}, log {Log.Folder}");
+        AppDomain.CurrentDomain.ProcessExit += (_, _) => Log.Info("Processo in chiusura (ProcessExit): uscita del servizio, arresto o disconnessione di Windows, oppure chiusura dal launcher");
         // A fatal error ends the process: record it where the operator and support look first.
         AppDomain.CurrentDomain.UnhandledException += (_, e) => Fatal(paths, e.ExceptionObject as Exception, Thread.CurrentThread.Name);
         TaskScheduler.UnobservedTaskException += (_, e) => { Log.Error("Eccezione di un'attività non osservata", e.Exception); e.SetObserved(); };
@@ -182,6 +188,7 @@ public static class Program
         var runtime = new AppRuntime(paths);
         MemoryGuard.Pressure += Recordings.RecordingLibrary.ClearCaches;
         MemoryGuard.Start();
+        StatusLog.Start(runtime.StatusSnapshot);
         DiskGuard.Watch("recordings", () => runtime.Recording.Directory);
         DiskGuard.Watch("data", () => paths.DataDir);
         DiskGuard.Critical += runtime.DiskCritical;
@@ -226,6 +233,7 @@ public static class Program
         finally
         {
             try { LiveApi.AppMode.Shutdown().Wait(TimeSpan.FromSeconds(10)); } catch (Exception exc) { Log.Warning("Chiusura Live Acquisition API: " + exc.Message); }
+            StatusLog.Stop();
             ssh.Close();
             runtime.Dispose();
             app.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(10));

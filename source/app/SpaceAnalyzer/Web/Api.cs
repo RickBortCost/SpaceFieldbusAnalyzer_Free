@@ -131,6 +131,7 @@ public sealed class Api(AppRuntime rt, SshService ssh, string token, Action shut
         }
         Post(app, "/api/shutdown", _ =>
         {
+            Log.Info("Chiusura richiesta dall'interfaccia (Chiudi applicazione)" + (rt.Recording.Acquiring ? ": registrazione in corso, viene finalizzata" : ""));
             // Lascia il tempo di consegnare la risposta prima di fermare il servizio: altrimenti la pagina vede "Failed to fetch".
             ThreadPool.QueueUserWorkItem(_ => { Thread.Sleep(400); shutdown(); });
             return Task.FromResult<object?>(Ok());
@@ -316,6 +317,7 @@ public sealed class Api(AppRuntime rt, SshService ssh, string token, Action shut
             result["selected_nodes"] = saved.ContainsKey("selected_nodes") ? Plain(saved["selected_nodes"]) : new List<object?>();
             result["saved_server_data"] = saved.ContainsKey("server_data") ? Plain(saved["server_data"]) : new Dictionary<string, object?>();
             result["data_dir"] = Paths.DataDir;
+            result["log_dir"] = Log.Folder;
             result["recordings_dir"] = Paths.RecordingsDir;
             result["workspace"] = Plain(rt.Config.LoadWorkspace());
             result["calculations"] = rt.Formulas.Snapshot();

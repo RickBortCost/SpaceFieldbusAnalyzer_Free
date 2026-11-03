@@ -24,6 +24,8 @@ public sealed class AppPaths
     public string WorkspaceFile => Path.Combine(DataDir, "workspace.json");
     public string ExportDir => Path.Combine(RecordingsDir, "Exports");
     public string LogFile => Path.Combine(DataDir, "opcua-client.log");
+    /// <summary>Daily logs (funzionamento, errori, stato) beside the executable, where the operator finds them for debugging.</summary>
+    public string LogDir => Path.Combine(ApplicationDir, "Log");
     public string Templates => Path.Combine(BaseDir, "templates");
     public string Static => Path.Combine(BaseDir, "static");
 

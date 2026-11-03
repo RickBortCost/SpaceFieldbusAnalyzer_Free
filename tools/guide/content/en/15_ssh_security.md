@@ -55,5 +55,18 @@ The launcher/EXE accepts non-interactive commands for primary archive management
 | FFT rejected | Check distinct X1/X2 markers, chart paused, period regularity (tolerance) and at least 16 samples. |
 | PostgreSQL query rejected | Only single SELECT, WITH, VALUES or TABLE statements are accepted; the message indicates the character of the error. |
 | Closing | Use Shut down and wait for background saves. |
+| Recording stopped for no apparent reason | Open the **Log** folder beside the executable (see below) and look for the time of the stop. |
+
+## Logs for debugging
+
+In the **Log** folder beside the executable (the path is shown at the bottom of the Connection pop-up, «Cartella log») the application writes one file per day and kind, kept for 30 days (1 GB at most overall):
+
+| File | Content |
+|---|---|
+| `SFA_funzionamento_YYYY-MM-DD.log` | All operation: start (PC, version, folders), mode, connections and reconnections of the sources, start and stop of every recording with format, signals, rows written and **reason** (user, disconnection, disk full, error), charts switched on or off, closing of the application and what requested it (button, window closed, Windows), events of the acquisition log. |
+| `SFA_errori_YYYY-MM-DD.log` | Warnings and errors only, with the technical details: disconnected sources, full acquisition queues, interrupted recordings, memory or disk running out, internal errors. |
+| `SFA_stato_YYYY-MM-DD.log` | Every 60 seconds one line with the complete status: sources (state, samples received, reconnections, effective period), acquisition queues (lost samples, delay), recording (rows, cycles, files, primary capture), PC and service memory, disk space, threads. If nothing is written for more than three intervals, the error file reports it (PC asleep or hibernated, service blocked, clock changed). |
+
+To understand why a recording stopped: in the operation file the line «Registrazione fermata (motivo: …)» or «Registrazione interrotta per errore» gives the cause; the status file shows memory, disk and queues in the hours before. If the cause is the closing of the application, the file reports «Finestra applicazione chiusa», «Chiusura richiesta dall'interfaccia» or «Processo in chiusura». The `opcua-client.log` log in the data folder is still available (⚙ Impostazioni menu → Log), but keeps only the last 25 MB.
 
 Reference documentation in the repository: `source/GUIDA_*.md`, `CHANGELOG.md`.
